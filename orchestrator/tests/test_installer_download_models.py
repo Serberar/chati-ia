@@ -1,0 +1,264 @@
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+import installer_download_models
+from models import model_catalog, model_registry
+
+
+@pytest.fixture(autouse=True)
+def _ollama_found_and_running(monkeypatch, tmp_path):
+    monkeypatch.setattr(installer_download_models, "_ollama_exe", lambda: "ollama")
+    monkeypatch.setattr(installer_download_models, "_ensure_ollama_server", lambda: None)
+    monkeypatch.setattr(installer_download_models, "LOG_FILE", tmp_path / "instalacion_modelos.log")
+
+
+def test_ollama_is_found_even_if_it_is_not_in_the_path(tmp_path, monkeypatch):
+    monkeypatch.undo()
+    exe = tmp_path / "Programs" / "Ollama" / "ollama.exe"
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b"")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setattr(installer_download_models.shutil, "which", lambda name: None)
+    assert installer_download_models._ollama_exe() == str(exe)
+
+
+def test_one_failed_model_does_not_stop_the_others_and_is_reported(tmp_path):
+    def fake_run(cmd, check):
+        if "qwen3:8b" in cmd:
+            raise installer_download_models.subprocess.CalledProcessError(1, cmd)
+
+    with patch.object(installer_download_models.subprocess, "run", side_effect=fake_run):
+        failed = installer_download_models.download_selected(["texto-rapido", "texto-calidad"])
+    assert failed == ["Chat rapido"]
+    log = (tmp_path / "instalacion_modelos.log").read_text(encoding="utf-8")
+    assert "FALLO: Chat rapido" in log and "hecho: Chat de mejor calidad" in log
+
+
+def test_destination_for_image_entry(tmp_path, monkeypatch):
+    img = tmp_path / "img"
+    monkeypatch.setattr(model_registry, "IMG_DIR", img)
+    entry = next(e for e in model_catalog.catalog_for_tier("8gb") if e.id == "imagen-flux")
+
+    dest = installer_download_models._destination_for(entry)
+
+    assert dest == img / "diffusion_models" / "flux" / "flux1-schnell-Q4_K_S.gguf"
+
+
+def test_destination_for_voice_entry(tmp_path, monkeypatch):
+    monkeypatch.setattr(installer_download_models, "MODELS_DIR", tmp_path)
+    entry = next(e for e in model_catalog.catalog_for_tier("8gb") if e.id == "voz-piper")
+
+    dest = installer_download_models._destination_for(entry)
+
+    assert dest == tmp_path / "voice" / "piper" / "es_ES-davefx-medium.onnx"
+
+
+def test_download_file_skips_if_already_present(tmp_path):
+    dest = tmp_path / "modelo.safetensors"
+    dest.write_bytes(b"ya existe")
+
+    with patch.object(installer_download_models.requests, "get") as mock_get:
+        installer_download_models._download_file("http://fake/url", dest)
+
+    mock_get.assert_not_called()
+    assert dest.read_bytes() == b"ya existe"
+
+
+def test_download_file_writes_the_full_content(tmp_path):
+    dest = tmp_path / "sub" / "modelo.bin"
+    fake_resp = MagicMock()
+    fake_resp.headers = {"content-length": "11"}
+    fake_resp.iter_content.return_value = [b"hola ", b"mundo!"]
+    fake_resp.__enter__.return_value = fake_resp
+    fake_resp.__exit__.return_value = False
+
+    with patch.object(installer_download_models.requests, "get", return_value=fake_resp):
+        installer_download_models._download_file("http://fake/url", dest)
+
+    assert dest.read_bytes() == b"hola mundo!"
+    assert not dest.with_suffix(dest.suffix + ".part").exists()
+
+
+def test_download_file_cut_halfway_leaves_no_broken_model(tmp_path):
+    dest = tmp_path / "modelo.bin"
+    fake_resp = MagicMock()
+    fake_resp.headers = {"content-length": "1000"}
+    fake_resp.iter_content.return_value = [b"solo un trozo"]
+    fake_resp.__enter__.return_value = fake_resp
+    fake_resp.__exit__.return_value = False
+
+    with patch.object(installer_download_models.requests, "get", return_value=fake_resp), \
+            pytest.raises(OSError, match="incompleta"):
+        installer_download_models._download_file("http://fake/url", dest)
+
+    assert not dest.exists()
+    assert not dest.with_suffix(dest.suffix + ".part").exists()
+
+
+def test_cpu_variant_pulls_base_and_creates_variant_locally():
+    modelfiles = []
+
+    def fake_run(cmd, check):
+        if cmd[1] == "create":
+            modelfiles.append(Path(cmd[4]).read_text(encoding="utf-8"))
+
+    with patch.object(installer_download_models.subprocess, "run", side_effect=fake_run) as mock_run:
+        installer_download_models._pull_ollama_model("qwen3-coder:30b-cpu")
+
+    cmds = [c.args[0][:3] for c in mock_run.call_args_list]
+    assert cmds == [["ollama", "pull", "qwen3-coder:30b"], ["ollama", "create", "qwen3-coder:30b-cpu"],
+                    ["ollama", "create", "qwen3-coder:30b-mixto"]]
+    assert modelfiles == ["FROM qwen3-coder:30b\nPARAMETER num_gpu 0\nPARAMETER num_ctx 32768\n",
+                          "FROM qwen3-coder:30b\nPARAMETER num_gpu 12\nPARAMETER num_ctx 32768\n"]
+
+
+def test_pull_ollama_model_calls_ollama_pull():
+    with patch.object(installer_download_models.subprocess, "run") as mock_run:
+        installer_download_models._pull_ollama_model("nomic-embed-text")
+
+    mock_run.assert_called_once_with(["ollama", "pull", "nomic-embed-text"], check=True)
+
+
+def test_chat_model_gets_the_context_the_agent_needs():
+    modelfiles = []
+
+    def fake_run(cmd, check):
+        if cmd[1] == "create":
+            modelfiles.append(Path(cmd[4]).read_text(encoding="utf-8"))
+
+    with patch.object(installer_download_models.subprocess, "run", side_effect=fake_run):
+        installer_download_models._pull_ollama_model("qwen2.5:7b")
+
+    assert modelfiles == ["FROM qwen2.5:7b\nPARAMETER num_ctx 16384\n"]
+
+
+def test_download_selected_routes_text_entries_to_ollama(tmp_path, monkeypatch):
+    monkeypatch.setattr(installer_download_models, "MODELS_DIR", tmp_path)
+    monkeypatch.setattr(model_registry, "IMG_DIR", tmp_path / "img")
+    monkeypatch.setattr(model_registry, "VID_DIR", tmp_path / "vid")
+
+    with patch.object(installer_download_models, "_pull_ollama_model") as mock_pull, \
+         patch.object(installer_download_models, "_download_file") as mock_download:
+        installer_download_models.download_selected(["texto-rapido"])
+
+    mock_pull.assert_called_once_with("qwen3:8b")
+    mock_download.assert_not_called()
+
+
+def test_download_selected_routes_image_entries_to_download(tmp_path, monkeypatch):
+    monkeypatch.setattr(installer_download_models, "MODELS_DIR", tmp_path)
+    monkeypatch.setattr(model_registry, "IMG_DIR", tmp_path / "img")
+    monkeypatch.setattr(model_registry, "VID_DIR", tmp_path / "vid")
+
+    with patch.object(installer_download_models, "_pull_ollama_model") as mock_pull, \
+         patch.object(installer_download_models, "_download_file") as mock_download:
+        installer_download_models.download_selected(["imagen-flux"])
+
+    mock_pull.assert_not_called()
+    assert mock_download.call_args_list[0].args[1].name == "flux1-schnell-Q4_K_S.gguf"
+
+
+def test_download_selected_ignores_unknown_ids(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(installer_download_models, "MODELS_DIR", tmp_path)
+    monkeypatch.setattr(model_registry, "IMG_DIR", tmp_path / "img")
+    monkeypatch.setattr(model_registry, "VID_DIR", tmp_path / "vid")
+
+    installer_download_models.download_selected(["no-existe-de-mentira"])
+
+    assert "AVISO" in capsys.readouterr().err
+
+
+def test_download_file_rejects_a_file_with_another_fingerprint(tmp_path):
+    dest = tmp_path / "modelo.bin"
+    fake_resp = MagicMock()
+    fake_resp.headers = {"content-length": "11"}
+    fake_resp.iter_content.return_value = [b"hola ", b"mundo!"]
+    fake_resp.__enter__.return_value = fake_resp
+    fake_resp.__exit__.return_value = False
+
+    with patch.object(installer_download_models.requests, "get", return_value=fake_resp), \
+            pytest.raises(OSError, match="huella"):
+        installer_download_models._download_file("http://fake/url", dest, "0" * 64)
+    assert not dest.exists()
+
+    good = __import__("hashlib").sha256(b"hola mundo!").hexdigest()
+    with patch.object(installer_download_models.requests, "get", return_value=fake_resp):
+        installer_download_models._download_file("http://fake/url", dest, good)
+    assert dest.read_bytes() == b"hola mundo!"
+
+
+def test_every_model_download_is_pinned_and_fingerprinted():
+    from models import model_catalog
+    for entry in model_catalog._BASE_CATALOG:
+        files = ([(entry.download_url, entry.sha256)] if entry.download_url else []) + \
+                [(url, sha) for url, _, sha in entry.extra_files]
+        for url, sha in files:
+            assert "/resolve/main/" not in url, url
+            assert sha and len(sha) == 64, url
+
+
+def test_updates_download_only_base_models_never_offered_and_retry_failures(tmp_path, monkeypatch):
+    offered = tmp_path / "modelos_ofrecidos.txt"
+    monkeypatch.setattr(installer_download_models, "OFFERED_FILE", offered)
+    all_ids = set(installer_download_models._all_entries())
+    offered.write_text("\n".join(all_ids - {"video-ltxv", "imagen-sdxl", "imagen-editar"}), encoding="utf-8")
+    assert installer_download_models.new_base_models() == ["imagen-sdxl", "video-ltxv"]
+
+    downloaded = []
+    def fake_download(ids):
+        downloaded.extend(ids)
+        return ["LTX-Video (2B, destilado)"]
+    monkeypatch.setattr(installer_download_models, "download_selected", fake_download)
+    monkeypatch.setattr(installer_download_models.sys, "argv", ["x", "--new-base"])
+    with pytest.raises(SystemExit):
+        installer_download_models.main()
+    assert downloaded == ["imagen-sdxl", "video-ltxv"]
+    assert installer_download_models.new_base_models() == ["video-ltxv"]
+
+
+def test_the_installer_wizard_offers_exactly_the_catalog():
+    import re
+
+    from infra.paths import CODE_ROOT
+    from models import model_catalog
+    iss = (CODE_ROOT / "setup" / "chati_installer.iss").read_text(encoding="utf-8")
+    wizard = {m[0]: m[1] == "True" for m in re.findall(r"AddCatalogItem\('([^']+)'.*?(True|False)\);", iss, re.DOTALL)}
+    catalog = {e.id: e.recommended_by_default for e in model_catalog.catalog_for_tier("8gb")}
+    assert wizard == catalog
+
+
+def test_every_ollama_model_chati_uses_is_in_the_catalog():
+    import yaml
+
+    from chat import rag
+    from infra.paths import CODE_ROOT
+    from models import model_catalog
+    config = yaml.safe_load((CODE_ROOT / "orchestrator" / "config.yaml").read_text(encoding="utf-8"))
+    used = {rag.EMBED_MODEL}
+    def walk(node):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k in ("model", "model_potente", "gpu_model") and isinstance(v, str):
+                    used.add(v)
+                walk(v)
+    walk(config)
+    offered = set()
+    for tier in ("cpu_only", "8gb"):
+        for e in model_catalog.catalog_for_tier(tier):
+            if e.ollama_model:
+                offered.add(e.ollama_model)
+                offered.update(v for v, _ in installer_download_models._EXTRA_VARIANTS.get(e.ollama_model, []))
+    assert used - offered == set()
+
+
+def test_chati_downloads_new_base_models_on_start_and_nothing_when_up_to_date(monkeypatch):
+    calls = []
+    monkeypatch.setattr(installer_download_models, "download", lambda ids: calls.append(ids) or [])
+    monkeypatch.setattr(installer_download_models, "new_base_models", lambda: [])
+    installer_download_models.download_new_base()
+    assert calls == []
+    monkeypatch.setattr(installer_download_models, "new_base_models", lambda: ["video-nuevo"])
+    installer_download_models.download_new_base()
+    assert calls == [["video-nuevo"]]

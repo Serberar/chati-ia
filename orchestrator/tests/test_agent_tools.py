@@ -1,0 +1,228 @@
+import json
+import sys
+from unittest.mock import MagicMock, patch
+
+import agent_mcp
+from api import routes_agent
+from coding import agent_tools as t
+
+
+def _use_tmp_memory(tmp_path, monkeypatch):
+    monkeypatch.setattr(t, "MEMORY_DIR", tmp_path / "memoria")
+    monkeypatch.setattr(t, "MEMORY_INDEX", tmp_path / "memoria" / "MEMORY.md")
+
+
+def test_memory_saves_indexes_updates_finds_and_deletes(tmp_path, monkeypatch):
+    _use_tmp_memory(tmp_path, monkeypatch)
+    assert "Guardado" in t.memory_save("Tests de Chati", "Se lanzan con pytest -m 'not live'.", "proyecto",
+                                       "C:/AI", "Como lanzar los tests")
+    index = t.memory_index()
+    assert "tests-de-chati (proyecto) [C:/AI]: Como lanzar los tests" in index
+    assert "Actualizado" in t.memory_save("Tests de Chati", "Ahora con -x.", "proyecto", "C:/AI")
+    assert "Ahora con -x." in t.memory_read("Tests de Chati")
+    assert "Ahora con -x." in t.memory_search("como se lanzan los tests")
+    assert t.memory_search("cocina italiana") == "Nada en la memoria sobre eso."
+    assert "Borrado" in t.memory_delete("tests-de-chati")
+    assert "tests-de-chati" not in t.memory_index()
+
+
+def test_memory_rejects_unknown_kinds_and_empty_content(tmp_path, monkeypatch):
+    _use_tmp_memory(tmp_path, monkeypatch)
+    assert "Tipo no valido" in t.memory_save("x", "algo", "secreto")
+    assert t.memory_save("x", "   ") == "No hay nada que guardar."
+
+
+def _response(status: int, payload: dict) -> MagicMock:
+    resp = MagicMock(status_code=status, ok=status == 200)
+    resp.json.return_value = payload
+    return resp
+
+
+def test_package_info_says_clearly_when_a_library_does_not_exist():
+    with patch.object(t.requests, "get", return_value=_response(404, {})):
+        assert t.package_info("pydantic-ultra-validator").startswith("NO EXISTE")
+        assert t.package_info("left-padder-pro", "npm").startswith("NO EXISTE")
+    info = {"info": {"name": "pydantic", "version": "3.1.0", "summary": "Data validation", "license": "MIT"},
+            "releases": {"3.1.0": [{"upload_time": "2026-09-01T10:00:00"}]}}
+    with patch.object(t.requests, "get", return_value=_response(200, info)):
+        text = t.package_info("pydantic")
+    assert "pydantic 3.1.0 (publicada 2026-09-01)" in text and "pip install pydantic" in text
+
+
+def test_check_updates_compares_requirements_and_package_json(tmp_path):
+    (tmp_path / "requirements.txt").write_text("fastapi==0.100.0\nrequests>=2.0  # comentario\nnoexiste==1.0\n",
+                                               encoding="utf-8")
+    (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"react": "^18.2.0"}}), encoding="utf-8")
+    latest = {"fastapi": "0.143.0", "requests": "2.34.2", "react": "19.3.0", "noexiste": None}
+    with patch.object(t, "_latest", side_effect=lambda name, eco: latest[name]):
+        report = t.check_updates(str(tmp_path))
+    assert "4 dependencias" in report
+    assert "fastapi (python): pedida ==0.100.0 -> ultima 0.143.0" in report
+    assert "react (npm): pedida ^18.2.0 -> ultima 19.3.0" in report
+    assert "noexiste (python): no se encuentra" in report
+
+
+def test_web_read_refuses_the_local_network():
+    assert "no esta permitida" in t.web_read("http://127.0.0.1:8188/queue")
+    assert "no esta permitida" in t.web_read("file:///C:/Windows/win.ini")
+
+
+def test_read_repo_only_accepts_public_https_repositories():
+    assert "Solo repositorios publicos" in t.read_repo("http://github.com/a/b")
+    assert "Dame la direccion" in t.read_repo("https://github.com/solo-usuario")
+
+
+def test_mcp_server_lists_and_calls_tools():
+    init = agent_mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+    assert init["result"]["serverInfo"]["name"] == "chati"
+    assert agent_mcp.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
+    names = [tool["name"] for tool in agent_mcp.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+             ["result"]["tools"]]
+    assert {"memoria_guardar", "buscar_web", "info_paquete", "revisar_actualizaciones", "leer_repo"} <= set(names)
+    with patch.object(t, "package_info", return_value="fastapi 1.0"):
+        reply = agent_mcp.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+                                  "params": {"name": "info_paquete", "arguments": {"nombre": "fastapi"}}})
+    assert reply["result"] == {"content": [{"type": "text", "text": "fastapi 1.0"}], "isError": False}
+    missing = agent_mcp.handle({"jsonrpc": "2.0", "id": 4, "method": "tools/call",
+                                "params": {"name": "info_paquete", "arguments": {}}})
+    assert missing["result"]["isError"] and "nombre" in missing["result"]["content"][0]["text"]
+    unknown = agent_mcp.handle({"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "borrar_todo"}})
+    assert unknown["error"]["code"] == -32602
+
+
+def test_the_mixed_code_model_moves_to_cpu_while_comfyui_generates():
+    from models import llm_proxy
+    body = json.dumps({"model": "qwen3-coder:30b-mixto", "messages": []}).encode()
+    assert json.loads(llm_proxy.cpu_when_gpu_busy(body, True))["model"] == "qwen3-coder:30b-cpu"
+    assert llm_proxy.cpu_when_gpu_busy(body, False) == body
+    other = json.dumps({"model": "qwen3:8b"}).encode()
+    assert llm_proxy.cpu_when_gpu_busy(other, True) == other
+
+
+def test_code_questions_go_to_the_read_only_agent():
+    questions = ["Voy a empezar un proyecto en Python. ¿Que libreria me recomiendas? Responde en dos lineas.",
+                 "como funciona el login de este proyecto", "Revisa si las dependencias estan al dia",
+                 "explícame la carpeta src", "¿por que falla el test de pagos?"]
+    orders = ["Crea un formulario de contacto", "arregla el test que falla", "Haz que valide antes, ¿vale?",
+              "añade un endpoint /salud", "el login falla con usuarios nuevos"]
+    assert all(routes_agent._is_code_question(q) for q in questions)
+    assert not any(routes_agent._is_code_question(o) for o in orders)
+
+
+def test_programs_run_in_the_background_and_can_be_read_and_stopped(tmp_path, monkeypatch):
+    monkeypatch.setattr(t, "PROGRAMS_DIR", tmp_path / "logs")
+    monkeypatch.setattr(t, "_programs", {})
+    (tmp_path / "srv.py").write_text("import time\nprint('arrancado', flush=True)\nwhile True:\n    time.sleep(1)\n",
+                                     encoding="utf-8")
+    out = t.start_program(str(tmp_path), f'"{sys.executable}" srv.py', wait=3)
+    assert "p1" in out and "en marcha" in out and "arrancado" in out
+    assert "arrancado" in t.program_output("p1")
+    assert "Parado p1" in t.stop_program("p1")
+    assert "terminado" in t.program_output("p1")
+    assert "no se arranca" in t.start_program(str(tmp_path), "rm -rf .")
+    assert "No hay ningun programa" in t.program_output("p9")
+
+
+def test_rename_symbol_previews_then_changes_whole_words_only(tmp_path):
+    (tmp_path / "precios.py").write_text("def precio_con_iva(p):\n    return p\r\n", encoding="utf-8", newline="")
+    (tmp_path / "test_precios.py").write_text("from precios import precio_con_iva\nprecio_con_iva_viejo = 1\n",
+                                              encoding="utf-8")
+    (tmp_path / "venv").mkdir()
+    (tmp_path / "venv" / "otro.py").write_text("precio_con_iva = 2\n", encoding="utf-8")
+    preview = t.find_symbol(str(tmp_path), "precio_con_iva")
+    assert "NO se ha cambiado" in preview and "precios.py:1" in preview and "venv" not in preview
+    assert "def precio_con_iva" in (tmp_path / "precios.py").read_text(encoding="utf-8")
+    done = t.rename_symbol(str(tmp_path), "precio_con_iva", "con_iva", apply=True)
+    assert "2 archivos" in done
+    assert (tmp_path / "precios.py").read_bytes() == b"def con_iva(p):\n    return p\r\n"
+    assert "precio_con_iva_viejo = 1" in (tmp_path / "test_precios.py").read_text(encoding="utf-8")
+    assert "import con_iva" in (tmp_path / "test_precios.py").read_text(encoding="utf-8")
+    assert (tmp_path / "venv" / "otro.py").read_text(encoding="utf-8") == "precio_con_iva = 2\n"
+    assert "Solo nombres simples" in t.rename_symbol(str(tmp_path), "a.b", "c")
+
+
+def test_definition_and_usages_find_imports_from_other_files(tmp_path):
+    (tmp_path / "precios.py").write_text('def precio_con_iva(precio, iva=0.21):\n    """Precio con IVA."""\n'
+                                         "    return precio * (1 + iva)\n", encoding="utf-8")
+    (tmp_path / "test_precios.py").write_text("from precios import precio_con_iva\n\n"
+                                              "def test_iva():\n    assert precio_con_iva(100) == 121\n",
+                                              encoding="utf-8")
+    d = t.find_definition(str(tmp_path), "precio_con_iva")
+    assert "precios.py:1" in d and "precio_con_iva(precio, iva=0.21)" in d and "Precio con IVA" in d
+    u = t.find_usages(str(tmp_path), "precio_con_iva")
+    assert "test_precios.py:1" in u and "test_precios.py:4" in u
+    assert not any(line.startswith("precios.py:1:") for line in u.splitlines())
+    assert "Dame solo el nombre" in t.find_usages(str(tmp_path), "a.b")
+
+
+def test_database_queries_are_read_only(tmp_path):
+    import sqlite3
+    db = tmp_path / "tienda.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute("CREATE TABLE productos (nombre TEXT, precio REAL)")
+        conn.execute("INSERT INTO productos VALUES ('pan', 1.2)")
+    assert "productos" in t.query_database(str(db))
+    assert "pan | 1.2" in t.query_database(str(db), "SELECT * FROM productos")
+    for bad in ("DELETE FROM productos", "UPDATE productos SET precio = 0", "SELECT * INTO x FROM productos",
+                "WITH a AS (SELECT 1) DELETE FROM productos", "DROP TABLE productos"):
+        assert "lectura" in t.query_database(str(db), bad) or "cambiar datos" in t.query_database(str(db), bad), bad
+    assert "Solo SQL Server de este ordenador" in t.query_database("sqlserver:servidor.com/BD", "SELECT 1")
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM productos").fetchone()[0] == 1
+
+
+def test_web_and_github_refuse_what_they_should():
+    assert "Solo webs de este ordenador" in t.use_local_page("https://google.com", [{"accion": "clic", "en": "x"}])
+    assert "usuario/proyecto" in t.github_read("no es un repo")
+    assert "Que quieres ver" in t.github_read("usuario/proyecto", "borrar")
+
+
+def test_build_exe_replaces_the_old_exe_next_to_the_script_and_tests_it(tmp_path, monkeypatch):
+    monkeypatch.setattr(t, "PROGRAMS_DIR", tmp_path / "prog")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "notas.py").write_text("import tkinter as tk\ntk.Tk().mainloop()\n", encoding="utf-8")
+    (app / "Notas.exe").write_bytes(b"viejo")
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        dist = cmd[cmd.index("--distpath") + 1]
+        name = cmd[cmd.index("--name") + 1]
+        (t.Path(dist)).mkdir(parents=True, exist_ok=True)
+        (t.Path(dist) / f"{name}.exe").write_bytes(b"nuevo")
+        return MagicMock(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(t.subprocess, "run", fake_run)
+    monkeypatch.setattr(t, "try_program", lambda path: "BIEN: se abre una ventana ('Notas')")
+    out = t.build_exe(str(app / "notas.py"))
+    assert (app / "Notas.exe").read_bytes() == b"nuevo"
+    assert "--windowed" in calls[0] and "BIEN" in out
+    assert sorted(p.name for p in app.iterdir()) == ["Notas.exe", "notas.py"]
+
+    (app / "notas.py").write_text("print(input('x'))\n", encoding="utf-8")
+    t.build_exe(str(app / "notas.py"), admin=True)
+    assert "--windowed" not in calls[1] and "--uac-admin" in calls[1]
+
+
+def test_build_exe_reports_pyinstaller_errors(tmp_path, monkeypatch):
+    monkeypatch.setattr(t, "PROGRAMS_DIR", tmp_path / "prog")
+    (tmp_path / "a.py").write_text("print(1)\n", encoding="utf-8")
+    monkeypatch.setattr(t.subprocess, "run",
+                        lambda cmd, **kw: MagicMock(returncode=1, stdout="", stderr="No module named PyInstaller"))
+    out = t.build_exe(str(tmp_path / "a.py"))
+    assert out.startswith("MAL") and "pip install pyinstaller" in out
+    assert t.build_exe(str(tmp_path / "no.py")).startswith("No existe")
+
+
+def test_try_program_says_a_console_program_that_finishes_well_works(tmp_path, monkeypatch):
+    monkeypatch.setattr(t, "PROGRAMS_DIR", tmp_path / "prog")
+    ok = tmp_path / "total.py"
+    ok.write_text("print('Total facturado: 1312.49 EUR')\n", encoding="utf-8")
+    assert t.try_program(str(ok)).startswith("BIEN") and "1312.49" in t.try_program(str(ok))
+    broken = tmp_path / "roto.py"
+    broken.write_text("print(float('12,50'))\n", encoding="utf-8")
+    assert t.try_program(str(broken)).startswith("MAL: falla con un error")
+    window = tmp_path / "ventana.py"
+    window.write_text("import tkinter\n", encoding="utf-8")
+    assert t.try_program(str(window)).startswith("MAL")

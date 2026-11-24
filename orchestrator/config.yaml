@@ -1,0 +1,51 @@
+ollama:
+  base_url: "http://127.0.0.1:11434"
+
+comfyui:
+  base_url: "http://127.0.0.1:8188"
+
+opencode:
+  base_url: "http://127.0.0.1:8901"
+  web_url: "http://127.0.0.1:8901"
+  agent: "chati"
+  model: "qwen3:8b"
+  agent_potente: "chati-potente"
+  model_potente: "qwen3-coder:30b-mixto"
+  agent_code: "chati-code"
+  agent_code_plan: "chati-code-plan"
+  no_think_models: ["qwen3:8b"]
+
+agents:
+  text:
+    model: "qwen3-coder:30b-cpu"
+    description: "conversacion general, razonamiento, preguntas abiertas"
+    profiles:
+      rapido:
+        model: "qwen3:8b"
+        label: "Rapido"
+      bueno:
+        model: "qwen3-coder:30b-cpu"
+        label: "Mejor calidad"
+    default_profile: "rapido"
+  code:
+    model: "qwen3-coder:30b-cpu"
+    description: "programacion, depuracion, explicacion de codigo"
+  vision:
+    model: "qwen2.5vl:7b-cpu"
+    gpu_model: "qwen2.5vl:7b-gpu"
+    description: "analizar y comentar una foto que subes"
+  image:
+    description: "generar imagenes a partir de una descripcion"
+  video:
+    description: "generar video corto a partir de una descripcion"
+
+router:
+  model: "qwen3:8b"
+
+verifier:
+  enabled: true
+  model: "qwen3:8b"
+  strict: true
+
+remote:
+  hosts: []

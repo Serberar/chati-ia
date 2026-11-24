@@ -1,0 +1,53 @@
+import subprocess
+from dataclasses import dataclass
+
+_TIER_BREAKPOINTS = [
+    (0, "cpu_only"),
+    (4000, "minimo"),
+    (6000, "8gb"),
+    (10000, "12gb"),
+    (14000, "16gb_plus"),
+]
+
+
+@dataclass
+class GpuInfo:
+    available: bool
+    name: str | None
+    vram_mib: int | None
+    tier: str
+
+
+def _run_nvidia_smi() -> str | None:
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, check=False, text=True, timeout=10,
+        )
+    except (subprocess.SubprocessError, OSError, FileNotFoundError):
+        return None
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    return result.stdout.strip().splitlines()[0]
+
+
+def _tier_for_vram(vram_mib: int) -> str:
+    tier = "cpu_only"
+    for breakpoint_mib, name in _TIER_BREAKPOINTS:
+        if vram_mib >= breakpoint_mib:
+            tier = name
+    return tier
+
+
+def detect_gpu() -> GpuInfo:
+    line = _run_nvidia_smi()
+    if line is None:
+        return GpuInfo(available=False, name=None, vram_mib=None, tier="cpu_only")
+
+    try:
+        name, vram_str = [p.strip() for p in line.split(",", 1)]
+        vram_mib = int(vram_str)
+    except (ValueError, IndexError):
+        return GpuInfo(available=False, name=None, vram_mib=None, tier="cpu_only")
+
+    return GpuInfo(available=True, name=name, vram_mib=vram_mib, tier=_tier_for_vram(vram_mib))
