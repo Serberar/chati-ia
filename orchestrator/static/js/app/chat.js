@@ -133,7 +133,7 @@ async function loadProfiles() {
     });
     const saved = localStorage.getItem("ia_model_profile");
     profileSelect.value = (saved && data.profiles.some(p => p.id === saved)) ? saved : (data.default || "");
-  } catch (err) {  }
+  } catch (err) { silenced(err); }
 }
 profileSelect.addEventListener("change", () => {
   localStorage.setItem("ia_model_profile", profileSelect.value);
@@ -234,7 +234,7 @@ async function refreshDocChips() {
       e.stopPropagation();
       keep.disabled = true;
       const resp = await fetch(`/sessions/${sid}/docs/${encodeURIComponent(d.name)}/keep`, { method: "POST" });
-      if (!resp.ok) { keep.disabled = false; alert("No se pudo guardar en Mis documentos."); return; }
+      if (!resp.ok) { keep.disabled = false; notify("No se pudo guardar en Mis documentos."); return; }
       const ok = document.createElement("span");
       ok.className = "kept";
       ok.textContent = "en Mis documentos ✓";
@@ -373,9 +373,9 @@ let isAdminUser = false;
 modeSelect.addEventListener("change", () => requestModeChange(modeSelect.value));
 
 const agentPowerToggle = document.getElementById("agentPowerToggle");
-try { agentPowerToggle.checked = localStorage.getItem("ia_agent_potente") === "on"; } catch (e) {  }
+try { agentPowerToggle.checked = localStorage.getItem("ia_agent_potente") === "on"; } catch (e) { silenced(e); }
 agentPowerToggle.addEventListener("change", () => {
-  try { localStorage.setItem("ia_agent_potente", agentPowerToggle.checked ? "on" : "off"); } catch (e) {  }
+  try { localStorage.setItem("ia_agent_potente", agentPowerToggle.checked ? "on" : "off"); } catch (e) { silenced(e); }
   if (currentMode === "agente") prepareModelsForMode();
 });
 
@@ -407,7 +407,7 @@ function applyMode(mode) {
 
   if (m.isCode) setTimeout(initCodeMode, 0);
   if (currentMode === "video") showVideoTips();
-  try { localStorage.setItem("ia_mode", currentMode); } catch (e) {  }
+  try { localStorage.setItem("ia_mode", currentMode); } catch (e) { silenced(e); }
   prepareModelsForMode();
 }
 

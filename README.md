@@ -38,7 +38,7 @@ Los modelos se configuran en `orchestrator/config.yaml`.
 
 ## Instalación
 
-Con el instalador (`ChatiIA-Instalador.exe`) o desde el código:
+Desde el código:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File setup/install.ps1
@@ -46,7 +46,7 @@ powershell -ExecutionPolicy Bypass -File setup/install.ps1
 
 El script instala lo que falte (Python 3.12, Ollama, Git, ComfyUI y demás) y prepara los entornos. Los modelos ocupan decenas de GB y no están en el repositorio.
 
-En una instalación, los datos y modelos van a `%LOCALAPPDATA%/ChatiIA`; se cambia con `-DataRoot` o con la variable `CHATI_DATA_ROOT`.
+Los datos y modelos van a `%LOCALAPPDATA%/ChatiIA`; se cambia con `-DataRoot` o con la variable `CHATI_DATA_ROOT`.
 
 ## Arrancar y parar
 

@@ -77,7 +77,7 @@ async function loadDevices() {
   const list = document.getElementById("devicesList");
   list.textContent = "";
   let items = [];
-  try { items = await (await fetch("/devices")).json(); } catch (e) {  }
+  try { items = await (await fetch("/devices")).json(); } catch (e) { silenced(e); }
   if (!items.length) {
     const empty = document.createElement("div");
     empty.className = "personas-intro";
@@ -100,7 +100,7 @@ async function loadDevices() {
     btn.className = "profile-link danger";
     btn.textContent = "Desconectar";
     btn.addEventListener("click", async () => {
-      if (!confirm(`¿Desconectar "${d.name}"? Para volver a usarlo habrá que vincularlo otra vez.`)) return;
+      if (!await askConfirm(`¿Desconectar "${d.name}"? Para volver a usarlo habrá que vincularlo otra vez.`)) return;
       await fetch(`/devices/${encodeURIComponent(d.id)}`, { method: "DELETE" });
       loadDevices();
     });
@@ -160,7 +160,7 @@ async function showCurrentComputer() {
 }
 
 async function announceOtherComputers() {
-  try { if (sessionStorage.getItem("chati_other_pc_seen")) return; } catch (e) {  }
+  try { if (sessionStorage.getItem("chati_other_pc_seen")) return; } catch (e) { silenced(e); }
   const others = (await fetchComputers()).filter((pc) => !pc.this && pc.chati);
   if (!others.length) return;
   const banner = document.getElementById("otherComputerBanner");
@@ -172,7 +172,7 @@ async function announceOtherComputers() {
   open.textContent = others.length === 1 ? `Ir a ${others[0].name}` : "Ver ordenadores";
   if (others.length > 1) open.addEventListener("click", (e) => { e.preventDefault(); computersModal.style.display = "block"; loadComputers(); });
   banner.style.display = "flex";
-  const dismiss = () => { banner.style.display = "none"; try { sessionStorage.setItem("chati_other_pc_seen", "1"); } catch (e) {  } };
+  const dismiss = () => { banner.style.display = "none"; try { sessionStorage.setItem("chati_other_pc_seen", "1"); } catch (e) { silenced(e); } };
   document.getElementById("otherComputerClose").addEventListener("click", dismiss);
   open.addEventListener("click", dismiss);
 }
@@ -195,7 +195,7 @@ function showAppUpdateBanner(info) {
 }
 
 async function installAppUpdate() {
-  if (!confirm("Se va a descargar e instalar la versión nueva. Windows pedirá permiso de administrador y Chati se cerrará un par de minutos; luego se vuelve a abrir sola. ¿Continuar?")) return;
+  if (!await askConfirm("Se va a descargar e instalar la versión nueva. Windows pedirá permiso de administrador y Chati se cerrará un par de minutos; luego se vuelve a abrir sola. ¿Continuar?")) return;
   const text = document.getElementById("appUpdateText");
   const btn = document.getElementById("appUpdateInstall");
   btn.style.display = "none";
@@ -213,16 +213,16 @@ async function installAppUpdate() {
 async function setupAppUpdates() {
   const checkNow = async () => {
     const info = await fetchAppUpdate(true);
-    if (!info) { alert("No se pudo comprobar si hay actualizaciones."); return; }
+    if (!info) { notify("No se pudo comprobar si hay actualizaciones."); return; }
     if (info.error && (info.falta_clave || info.error.includes("clave"))) {
-      const token = prompt(`${info.error}\n\nPega un token de GitHub de solo lectura (github.com > Settings > Developer settings > Fine-grained tokens, repo Serberar/chati, permiso Contents: Read-only):`);
+      const token = await askText(`${info.error}\n\nPega un token de GitHub de solo lectura (github.com > Settings > Developer settings > Fine-grained tokens, repo Serberar/chati, permiso Contents: Read-only):`);
       if (!token) return;
       const resp = await sendJSON("/app/github_token", { token });
-      if (!resp.ok) { alert((await resp.json()).detail || "No se pudo guardar."); return; }
+      if (!resp.ok) { notify((await resp.json()).detail || "No se pudo guardar."); return; }
       return checkNow();
     }
-    if (info.error) { alert(`No se pudo comprobar si hay actualizaciones: ${info.error}`); return; }
-    if (!info.available) { alert(`Chati está al día (versión ${info.current}).`); return; }
+    if (info.error) { notify(`No se pudo comprobar si hay actualizaciones: ${info.error}`); return; }
+    if (!info.available) { notify(`Chati está al día (versión ${info.current}).`); return; }
     optionsModal.style.display = "none";
     showAppUpdateBanner(info);
   };
@@ -257,10 +257,10 @@ async function setupAutostart() {
     const question = enabled
       ? "Chati dejará de arrancar al encender el ordenador: no ocupará memoria hasta que la abras (tardará un poco más en estar lista). ¿Continuar?"
       : "Chati arrancará al encender el ordenador y estará lista al abrirla, pero ocupará memoria aunque no la uses. ¿Continuar?";
-    if (!confirm(question)) return;
+    if (!await askConfirm(question)) return;
     const resp = await sendJSON("/app/autostart", { enabled: !enabled }).catch(() => null);
     const data = resp ? await resp.json().catch(() => ({})) : {};
-    if (!resp || !resp.ok) { alert(data.detail || "No se pudo cambiar."); return; }
+    if (!resp || !resp.ok) { notify(data.detail || "No se pudo cambiar."); return; }
     enabled = data.enabled;
     show();
   });
@@ -291,17 +291,17 @@ function renderPushRow() {
 async function enablePush() {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !window.Notification) {
     const iphone = /iPhone|iPad/.test(navigator.userAgent);
-    alert(iphone
+    notify(iphone
       ? "En el iPhone los avisos solo funcionan con Chati instalado: en Safari pulsa Compartir → «Añadir a pantalla de inicio», abre Chati desde ese icono y vuelve aquí."
       : "Este navegador no admite avisos.");
     return;
   }
   if (await Notification.requestPermission() !== "granted") {
-    alert("Sin permiso no te puedo avisar. Puedes darlo en los ajustes del navegador (o del iPhone: Ajustes → Notificaciones → Chati).");
+    notify("Sin permiso no te puedo avisar. Puedes darlo en los ajustes del navegador (o del iPhone: Ajustes → Notificaciones → Chati).");
     return;
   }
   await syncPushSubscription();
-  try { localStorage.setItem("ia_push", "on"); } catch (e) {  }
+  try { localStorage.setItem("ia_push", "on"); } catch (e) { silenced(e); }
   await agentPost("/push/test");
 }
 
@@ -328,11 +328,11 @@ async function syncPushSubscription() {
 async function repairPush() {
   if (!pushOn() || !("serviceWorker" in navigator) || !window.Notification) return;
   if (Notification.permission !== "granted") {
-    try { localStorage.removeItem("ia_push"); } catch (e) {  }
+    try { localStorage.removeItem("ia_push"); } catch (e) { silenced(e); }
     renderPushRow();
     return;
   }
-  try { await syncPushSubscription(); } catch (e) {  }
+  try { await syncPushSubscription(); } catch (e) { silenced(e); }
 }
 
 async function disablePush() {
@@ -344,14 +344,14 @@ async function disablePush() {
       await sub.unsubscribe();
     }
   } finally {
-    try { localStorage.removeItem("ia_push"); } catch (e) {  }
+    try { localStorage.removeItem("ia_push"); } catch (e) { silenced(e); }
   }
 }
 
 function takeLauncherPush() {
   const m = location.hash.match(/[#&]push=([A-Za-z0-9_-]+)/);
   if (!m) return;
-  try { sessionStorage.setItem("chati_launcher_push", m[1]); } catch (e) {  }
+  try { sessionStorage.setItem("chati_launcher_push", m[1]); } catch (e) { silenced(e); }
   history.replaceState(null, "", location.pathname + location.search);
 }
 takeLauncherPush();
@@ -366,20 +366,20 @@ async function adoptLauncherPush() {
     sessionStorage.removeItem("chati_launcher_push");
     localStorage.setItem("ia_push", "on");
     renderPushRow();
-  } catch (e) {  }
+  } catch (e) { silenced(e); }
 }
 
 document.getElementById("optPushBtn").addEventListener("click", async () => {
   try {
     if (!pushOn()) {
       await enablePush();
-    } else if (confirm("Los avisos están activados en este dispositivo.\n\nAceptar: mandar un aviso de prueba\nCancelar: dejarlo como está")) {
+    } else if (await askConfirm("Los avisos están activados en este dispositivo.\n\nAceptar: mandar un aviso de prueba\nCancelar: dejarlo como está")) {
       await agentPost("/push/test");
-    } else if (confirm("¿Desactivar los avisos en este dispositivo?")) {
+    } else if (await askConfirm("¿Desactivar los avisos en este dispositivo?")) {
       await disablePush();
     }
   } catch (err) {
-    alert("No se pudieron activar los avisos: " + (err.message || err));
+    notify("No se pudieron activar los avisos: " + (err.message || err));
   }
   renderPushRow();
 });
@@ -410,7 +410,7 @@ document.getElementById("pairStartBtn").addEventListener("click", async () => {
   const ends = Date.now() + data.expires_in * 1000;
   const timerEl = document.getElementById("pairTimer");
   const before = new Set();
-  try { (await (await fetch("/devices")).json()).forEach((d) => before.add(d.id)); } catch (e) {  }
+  try { (await (await fetch("/devices")).json()).forEach((d) => before.add(d.id)); } catch (e) { silenced(e); }
   const tick = async () => {
     const left = Math.round((ends - Date.now()) / 1000);
     if (left <= 0) { stopPairing(); msgEl.textContent = "El código ha caducado. Pide otro."; return; }
@@ -419,7 +419,7 @@ document.getElementById("pairStartBtn").addEventListener("click", async () => {
       try {
         const now = await (await fetch("/devices")).json();
         if (now.some((d) => !before.has(d.id))) { stopPairing(); msgEl.textContent = "¡Vinculado!"; loadDevices(); }
-      } catch (e) {  }
+      } catch (e) { silenced(e); }
     }
   };
   tick();

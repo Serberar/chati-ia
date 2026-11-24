@@ -19,7 +19,7 @@ async function toggleRecording() {
       micBtn.textContent = "Detener y enviar";
       micBtn.classList.add("recording");
     } catch (err) {
-      alert("No se pudo acceder al microfono: " + err);
+      notify("No se pudo acceder al microfono: " + err);
     }
   } else {
     mediaRecorder.stop();

@@ -3,7 +3,6 @@ import io
 from PIL import Image, ImageDraw
 
 
-
 def _sample_image_bytes() -> bytes:
     img = Image.new("RGB", (200, 200), color="black")
     draw = ImageDraw.Draw(img)

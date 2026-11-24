@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import shutil
@@ -13,6 +14,8 @@ from urllib.parse import quote_plus, urlparse
 import requests
 
 from infra.paths import DATA_DIR, ORCH_DIR
+
+_logger = logging.getLogger(__name__)
 
 MEMORY_DIR = DATA_DIR / "agente_memoria"
 MEMORY_INDEX = MEMORY_DIR / "MEMORY.md"
@@ -151,7 +154,7 @@ def web_read(url: str, start: int = 0) -> str:
             with web_tools.Browser() as browser:
                 text = browser.fetch_page(url)["text"]
         except Exception:
-            pass
+            _logger.debug("web_read: se sigue sin ello", exc_info=True)
     part = text[start:start + PAGE_CHARS]
     more = f"\n\n[... sigue: vuelve a pedirla con start={start + PAGE_CHARS}]" if len(text) > start + PAGE_CHARS else ""
     return part + more
@@ -537,7 +540,7 @@ def _note_started(pid: int, command: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(started, ensure_ascii=False), encoding="utf-8")
     except OSError:
-        pass
+        _logger.debug("_note_started: se sigue sin ello", exc_info=True)
 
 
 def stop_started_since(since: float) -> list[str]:
@@ -668,7 +671,7 @@ def try_program(path: str, seconds: int = 6, capture: Path | None = None) -> str
                 try:
                     _capture_window(windows[0][0], capture)
                 except Exception:
-                    pass
+                    _logger.debug("try_program: se sigue sin ello", exc_info=True)
             subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True, check=False)
             proc.wait(timeout=10)
             code = None

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import shutil
@@ -6,6 +7,8 @@ import subprocess
 import time
 import winreg
 from pathlib import Path
+
+_logger = logging.getLogger(__name__)
 
 REFRESH_SECONDS = 24 * 3600
 TOOLS = ("git", "node", "npm", "pyinstaller", "ollama", "docker", "code", "pwsh", "winget", "java", "dotnet")
@@ -23,9 +26,9 @@ def known_folders() -> dict[str, str]:
                 try:
                     found[name] = os.path.expandvars(winreg.QueryValueEx(key, value)[0])
                 except OSError:
-                    pass
+                    _logger.debug("known_folders: se sigue sin ello", exc_info=True)
     except OSError:
-        pass
+        _logger.debug("known_folders: se sigue sin ello", exc_info=True)
     home = Path.home()
     for name, default in (("Escritorio", "Desktop"), ("Documentos", "Documents"), ("Descargas", "Downloads")):
         found.setdefault(name, str(home / default))

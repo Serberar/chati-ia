@@ -223,7 +223,7 @@ document.getElementById("jobsSearchBtn").addEventListener("click", async () => {
   renderJobsStatus();
   followJobs();
 });
-document.getElementById("jobsCancelBtn").addEventListener("click", () => agentPost("/jobs/cancel").catch(() => {}));
+document.getElementById("jobsCancelBtn").addEventListener("click", () => agentPost("/jobs/cancel").catch(silenced));
 
 function followJobs() {
   if (jobsPoll) return;
@@ -234,7 +234,7 @@ function followJobs() {
     if (st.running) { if (jobsModal.style.display === "block") renderJobsStatus(); else updateJobsChip(); return; }
     clearInterval(jobsPoll);
     jobsPoll = null;
-    await loadJobs().catch(() => {});
+    await loadJobs().catch(silenced);
     if (jobsModal.style.display !== "block") {
       jobsUnseen = ((jobsData.results || {}).offers || []).filter((o) => o.nueva).length;
       updateJobsChip();

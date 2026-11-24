@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import logging
 import os
 import shutil
 import subprocess
@@ -12,6 +13,8 @@ import requests
 
 from infra.paths import DATA_DIR, MODELS_DIR
 from models import model_catalog, model_registry
+
+_logger = logging.getLogger(__name__)
 
 OLLAMA_URL = "http://127.0.0.1:11434"
 LOG_FILE = DATA_DIR / "logs" / "instalacion_modelos.log"
@@ -98,7 +101,7 @@ def _ensure_ollama_server() -> None:
         requests.get(f"{OLLAMA_URL}/api/tags", timeout=3).raise_for_status()
         return
     except requests.RequestException:
-        pass
+        _logger.debug("_ensure_ollama_server: se sigue sin ello", exc_info=True)
     env = {**os.environ, "OLLAMA_MODELS": str(MODELS_DIR / "text"), "OLLAMA_FLASH_ATTENTION": "0"}
     if shutil.which("nvidia-smi"):
         env["HIP_VISIBLE_DEVICES"] = "-1"
@@ -147,7 +150,7 @@ def _log(line: str, error: bool = False) -> None:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {line}\n")
     except OSError:
-        pass
+        _logger.debug("_log: se sigue sin ello", exc_info=True)
 
 
 def download_selected(entry_ids: list[str]) -> list[str]:

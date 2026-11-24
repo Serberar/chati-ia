@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import os
 import re
 import time
@@ -8,6 +9,8 @@ import requests
 
 from infra.paths import DATA_DIR, MODELS_DIR
 from version import VERSION
+
+_logger = logging.getLogger(__name__)
 
 LATEST_URL = "https://api.github.com/repos/Serberar/chati-ia/releases/latest"
 TOKEN_FILE = MODELS_DIR.parent / "secretos" / "github_token.txt"
@@ -72,7 +75,7 @@ def check(force: bool = False) -> dict:
             if time.time() - cached["checked_at"] < CACHE_TTL_SECONDS:
                 latest = cached["latest"]
         except (ValueError, KeyError):
-            pass
+            _logger.debug("check: se sigue sin ello", exc_info=True)
     if latest is None:
         try:
             latest = _fetch_latest()

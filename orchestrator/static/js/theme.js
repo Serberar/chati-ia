@@ -8,7 +8,7 @@ function reportClientError(message, source, stack) {
     });
     fetch("/client-log", { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true })
       .catch(() => {});
-  } catch (e) {  }
+  } catch (e) { console.debug(e); }
 }
 window.addEventListener("error", (e) => {
   reportClientError(e.message, `${e.filename || ""}:${e.lineno || ""}:${e.colno || ""}`, e.error && e.error.stack);
@@ -36,7 +36,7 @@ initTheme();
 
 function setSidebarHidden(hidden) {
   document.body.classList.toggle("sidebar-hidden", hidden);
-  try { localStorage.setItem("ia_sidebar_hidden", hidden ? "1" : "0"); } catch (e) {}
+  try { localStorage.setItem("ia_sidebar_hidden", hidden ? "1" : "0"); } catch (e) { console.debug(e); }
 }
 
 const mobileQuery = window.matchMedia("(max-width: 760px)");
@@ -66,4 +66,4 @@ document.addEventListener("keydown", (e) => {
     setSidebarHidden(!document.body.classList.contains("sidebar-hidden"));
   }
 });
-try { if (localStorage.getItem("ia_sidebar_hidden") === "1") document.body.classList.add("sidebar-hidden"); } catch (e) {}
+try { if (localStorage.getItem("ia_sidebar_hidden") === "1") document.body.classList.add("sidebar-hidden"); } catch (e) { console.debug(e); }

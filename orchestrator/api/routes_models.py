@@ -12,9 +12,23 @@ from agents import comfyui_client
 from api import access, security
 from chat.rag import EMBED_MODEL
 from infra import app_update, autostart
-from infra.core import CONFIG, image_agent, log, ollama, text_agent, video_agent, vision_agent
+from infra.core import (
+    CONFIG,
+    image_agent,
+    log,
+    ollama,
+    text_agent,
+    video_agent,
+    vision_agent,
+)
 from media import media_store
-from models import finetune_export, gpu_memory, model_choice, model_registry, model_updates
+from models import (
+    finetune_export,
+    gpu_memory,
+    model_choice,
+    model_registry,
+    model_updates,
+)
 
 router = APIRouter()
 

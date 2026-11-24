@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import re
 import time
 import uuid
@@ -7,6 +8,8 @@ from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
 
 from infra import paths
+
+_logger = logging.getLogger(__name__)
 
 MEDIA_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
                ".mp4": "video/mp4", ".wav": "audio/wav"}
@@ -97,7 +100,7 @@ def cleanup_old_media(max_age_days: float = MEDIA_MAX_AGE_DAYS) -> int:
                 p.unlink()
                 removed += 1
         except OSError:
-            pass
+            _logger.debug("cleanup_old_media: se sigue sin ello", exc_info=True)
     return removed
 
 
@@ -110,5 +113,5 @@ def cleanup_tmp(max_age: float = TMP_MAX_AGE_SECONDS) -> int:
                 p.unlink()
                 removed += 1
         except OSError:
-            pass
+            _logger.debug("cleanup_tmp: se sigue sin ello", exc_info=True)
     return removed

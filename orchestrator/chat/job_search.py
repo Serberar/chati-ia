@@ -9,7 +9,15 @@ from urllib.parse import quote_plus
 
 from accounts import profile_store
 from chat.rag import _extract_text
-from chat.web_tools import Blocked, Browser, ChatFn, EncryptedStore, json_from, site_label, unbing
+from chat.web_tools import (
+    Blocked,
+    Browser,
+    ChatFn,
+    EncryptedStore,
+    json_from,
+    site_label,
+    unbing,
+)
 
 _json_from, _site_label, _unbing = json_from, site_label, unbing
 _store = EncryptedStore("jobs_meta.json")

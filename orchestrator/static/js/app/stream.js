@@ -216,7 +216,7 @@ function downloadButton(fileUrl) {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err) {
-      alert("No se pudo descargar: " + (err.message || err));
+      notify("No se pudo descargar: " + (err.message || err));
     } finally {
       b.disabled = false;
     }
@@ -237,7 +237,7 @@ function shareButton(fileUrl) {
       if (!navigator.canShare({ files: [file] })) throw new Error("este navegador no puede compartir archivos");
       await navigator.share({ files: [file] });
     } catch (err) {
-      if (err && err.name !== "AbortError") alert("No se pudo compartir: " + (err.message || err));
+      if (err && err.name !== "AbortError") notify("No se pudo compartir: " + (err.message || err));
     }
   });
   return b;

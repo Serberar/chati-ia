@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -6,6 +7,8 @@ from pathlib import Path
 import requests
 
 from infra.paths import DATA_DIR
+
+_logger = logging.getLogger(__name__)
 
 REGISTRY_BASE = "https://registry.ollama.ai/v2/library"
 CACHE_PATH = DATA_DIR / "model_updates.json"
@@ -83,7 +86,7 @@ def check_updates(force: bool = False) -> list[dict]:
             if time.time() - cached.get("checked_at_epoch", 0) < CACHE_TTL_SECONDS:
                 return cached["results"]
         except (json.JSONDecodeError, KeyError):
-            pass
+            _logger.debug("check_updates: se sigue sin ello", exc_info=True)
 
     results = [_check_one(name, tag) for name, tag in installed_official_models()]
 

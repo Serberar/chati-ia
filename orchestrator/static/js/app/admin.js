@@ -31,19 +31,19 @@ async function loadAdminPanel() {
 
   usersBox.querySelectorAll(".pcAccessChk").forEach((chk) => {
     chk.addEventListener("change", async () => {
-      if (chk.checked && !confirm(`"${chk.dataset.username}" podrá usar el agente, leer tus archivos del Escritorio y Documentos y ejecutar código en este ordenador. ¿Seguro?`)) {
+      if (chk.checked && !await askConfirm(`"${chk.dataset.username}" podrá usar el agente, leer tus archivos del Escritorio y Documentos y ejecutar código en este ordenador. ¿Seguro?`)) {
         chk.checked = false;
         return;
       }
       const resp = await sendJSON(`/auth/users/${encodeURIComponent(chk.dataset.username)}/pc_access`,
                                   { allowed: chk.checked }, "PUT");
-      if (!resp.ok) { chk.checked = !chk.checked; alert("No se pudo cambiar el permiso."); }
+      if (!resp.ok) { chk.checked = !chk.checked; notify("No se pudo cambiar el permiso."); }
     });
   });
 
   usersBox.querySelectorAll(".deleteUserBtn").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      if (!confirm(`¿Eliminar la cuenta de "${btn.dataset.username}"? Se borraran tambien todos sus datos (conversaciones, caras, documentos). No se puede deshacer.`)) return;
+      if (!await askConfirm(`¿Eliminar la cuenta de "${btn.dataset.username}"? Se borraran tambien todos sus datos (conversaciones y documentos). No se puede deshacer.`)) return;
       await fetch(`/auth/users/${encodeURIComponent(btn.dataset.username)}`, { method: "DELETE" });
       await loadAdminPanel();
     });

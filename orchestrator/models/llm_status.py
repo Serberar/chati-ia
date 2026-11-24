@@ -1,11 +1,14 @@
 import itertools
 import json
+import logging
 import subprocess
 import threading
 import time
 
 import psutil
 import requests
+
+_logger = logging.getLogger(__name__)
 
 OLLAMA_URL = "http://127.0.0.1:11434"
 
@@ -42,7 +45,7 @@ def output(rid: int, line: bytes) -> None:
                     args = json.loads(fn.get("arguments") or "{}")
                     target = args.get("filePath") or args.get("path") or args.get("command") or target
         except (ValueError, AttributeError):
-            pass
+            _logger.debug("output: se sigue sin ello", exc_info=True)
     with _lock:
         r = _active.get(rid)
         if not r:
@@ -80,7 +83,7 @@ def ollama_cpu() -> float:
         try:
             total += proc.cpu_percent(None)
         except psutil.Error:
-            pass
+            _logger.debug("ollama_cpu: se sigue sin ello", exc_info=True)
     for pid in set(_procs) - seen:
         _procs.pop(pid, None)
     if total >= BUSY_CPU_PERCENT:

@@ -120,7 +120,7 @@ function resumeAgentView(view, reply) {
 
   if (view.codeMode === "plan" && reply.mode === "build") {
     view.codeMode = codeState.mode = "build";
-    try { localStorage.setItem("ia_code_mode", "build"); } catch (e) {  }
+    try { localStorage.setItem("ia_code_mode", "build"); } catch (e) { silenced(e); }
     renderCodeBar();
   }
   view.followEl.style.display = "none";
@@ -169,7 +169,7 @@ async function startAgentTask(text, opts = {}) {
       note.style.fontSize = "13px";
       note.textContent = "Se lo paso al agente: lo tendrá en cuenta en su siguiente paso.";
     } catch (err) {
-      alert("No se pudo mandar: " + (err.message || err));
+      notify("No se pudo mandar: " + (err.message || err));
     }
     return;
   }
@@ -272,7 +272,7 @@ function openAgentView(sessionId, startedAt, codeMode = null) {
     undo.title = `Deja ${where} como estaba antes del último encargo`;
     undo.style.display = "none";
     undo.addEventListener("click", async () => {
-      if (!confirm(`¿Dejar ${where} como estaba antes del último encargo? Se pierden los cambios del agente desde entonces.`)) return;
+      if (!await askConfirm(`¿Dejar ${where} como estaba antes del último encargo? Se pierden los cambios del agente desde entonces.`)) return;
       undo.disabled = true;
       try {
         const r = await agentPost(`/agent/tasks/${sessionId}/undo`);
@@ -283,7 +283,7 @@ function openAgentView(sessionId, startedAt, codeMode = null) {
         view.stepsEl.after(note);
         undo.style.display = r.quedan ? "" : "none";
       } catch (err) {
-        alert("No se pudo deshacer: " + (err.message || err));
+        notify("No se pudo deshacer: " + (err.message || err));
       } finally {
         undo.disabled = false;
       }
@@ -297,7 +297,7 @@ function openAgentView(sessionId, startedAt, codeMode = null) {
     try {
       resumeAgentView(view, await agentPost(`/agent/tasks/${sessionId}/message`, { text, code_mode: mode }));
     } catch (err) {
-      alert("No se pudo mandar: " + (err.message || err));
+      notify("No se pudo mandar: " + (err.message || err));
     }
   };
   agentViews[sessionId] = view;
@@ -306,14 +306,14 @@ function openAgentView(sessionId, startedAt, codeMode = null) {
     try {
       await agentPost(`/agent/tasks/${sessionId}/retry`);
     } catch (err) {
-      alert("No se pudo reintentar: " + (err.message || err));
+      notify("No se pudo reintentar: " + (err.message || err));
     }
     view.retryBtn.disabled = false;
     followAgentView(view);
   });
   view.stopBtn.addEventListener("click", async () => {
     view.stopBtn.disabled = true;
-    try { await agentPost(`/agent/tasks/${sessionId}/abort`); } catch (e) {  }
+    try { await agentPost(`/agent/tasks/${sessionId}/abort`); } catch (e) { silenced(e); }
     followAgentView(view);
   });
   followAgentView(view);
@@ -402,7 +402,7 @@ function noticeAgent(view, data) {
       const n = new Notification(head, { body: detail, icon: "/static/icon-192.png", tag: "chati-" + view.sessionId });
       n.onclick = () => { window.focus(); n.close(); };
     }
-  } catch (e) {  }
+  } catch (e) { silenced(e); }
 }
 
 document.addEventListener("visibilitychange", () => {
@@ -412,7 +412,7 @@ document.addEventListener("visibilitychange", () => {
 function askNotificationPermission() {
   try {
     if (window.Notification && Notification.permission === "default") Notification.requestPermission();
-  } catch (e) {  }
+  } catch (e) { silenced(e); }
 }
 
 function renderAgentView(view, data) {
@@ -603,12 +603,12 @@ function renderAgentChanges(view, data, busy) {
     return b;
   };
   const act = async (b, path, confirmText) => {
-    if (confirmText && !confirm(confirmText)) return;
+    if (confirmText && !await askConfirm(confirmText)) return;
     b.disabled = true;
     try {
       await agentPost(`/agent/tasks/${view.sessionId}/${path}`);
     } catch (err) {
-      alert("No se pudo: " + (err.message || err));
+      notify("No se pudo: " + (err.message || err));
       b.disabled = false;
       return;
     }
@@ -640,7 +640,7 @@ function renderAgentChanges(view, data, busy) {
         if (!resp.ok) throw new Error(info.detail || resp.status);
         renderAgentDiffs(list, info);
       } catch (err) {
-        alert("No se pudieron cargar los cambios: " + (err.message || err));
+        notify("No se pudieron cargar los cambios: " + (err.message || err));
         b.disabled = false;
         return;
       }
@@ -767,7 +767,7 @@ function buildQuestionCard(view, request) {
       if (rejected) await agentPost(`/agent/questions/${request.id}/reject`);
       else await agentPost(`/agent/questions/${request.id}`, { answers });
     } catch (err) {
-      alert("No se pudo enviar la respuesta: " + (err.message || err));
+      notify("No se pudo enviar la respuesta: " + (err.message || err));
       setAskDisabled(box, false);
       return;
     }
@@ -884,7 +884,7 @@ function buildPermissionCard(view, perm) {
       try {
         await agentPost(`/agent/permissions/${perm.id}`, { reply });
       } catch (err) {
-        alert("No se pudo enviar la respuesta: " + (err.message || err));
+        notify("No se pudo enviar la respuesta: " + (err.message || err));
         setAskDisabled(box, false);
         return;
       }

@@ -21,7 +21,7 @@ async function loadAvatar() {
     try {
       const resp = await fetch("/profile/avatar");
       if (resp.ok) avatarUrl = URL.createObjectURL(await resp.blob());
-    } catch (e) {  }
+    } catch (e) { silenced(e); }
   }
   renderWhoami();
   if (profileModal.style.display === "block") fillProfile();
@@ -158,7 +158,7 @@ async function loadCvStatus() {
     const data = await resp.json();
     cvStatus.textContent = data.has_cv ? data.filename : "Todavia no has subido tu CV";
     cvUploadBtn.textContent = data.has_cv ? "Sustituir" : "Subir CV";
-  } catch (err) {  }
+  } catch (err) { silenced(err); }
 }
 
 cvInput.addEventListener("change", async () => {
@@ -169,7 +169,7 @@ cvInput.addEventListener("change", async () => {
   try {
     await fetch("/cv", { method: "POST", body: form });
     await loadCvStatus();
-    if (jobsModal.style.display === "block") loadJobs().catch(() => {});
+    if (jobsModal.style.display === "block") loadJobs().catch(silenced);
   } catch (err) {
     cvStatus.textContent = "Error subiendo el CV";
   }

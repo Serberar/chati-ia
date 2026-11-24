@@ -1,7 +1,10 @@
 import json
+import logging
 import time
 
 from infra.paths import DATA_DIR
+
+_logger = logging.getLogger(__name__)
 
 LOG_PATH = DATA_DIR / "metrics.jsonl"
 LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -36,7 +39,7 @@ def _trim() -> None:
         lines = LOG_PATH.read_text(encoding="utf-8").splitlines()
         LOG_PATH.write_text("\n".join(lines[len(lines) // 2:]) + "\n", encoding="utf-8")
     except OSError:
-        pass
+        _logger.debug("_trim: se sigue sin ello", exc_info=True)
 
 
 def _read_events(last_n: int | None = 2000) -> list[dict]:

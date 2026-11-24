@@ -6,7 +6,15 @@ import uuid
 from collections.abc import Callable
 from urllib.parse import urlparse
 
-from chat.web_tools import Blocked, Browser, ChatFn, EncryptedStore, is_private_host, json_from, site_label
+from chat.web_tools import (
+    Blocked,
+    Browser,
+    ChatFn,
+    EncryptedStore,
+    is_private_host,
+    json_from,
+    site_label,
+)
 
 MAX_HISTORY = 10
 PAGE_MAX_CHARS = 6000

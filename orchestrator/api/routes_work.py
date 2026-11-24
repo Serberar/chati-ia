@@ -1,4 +1,5 @@
 """Rutas de trabajos en curso: ver lo pendiente y parar generaciones o tareas del agente."""
+import logging
 import time
 
 import requests
@@ -10,6 +11,8 @@ from api import access, routes_agent
 from coding import agent_watch, opencode_client
 from infra.core import CONFIG, log
 from models import llm_status
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -82,10 +85,10 @@ def stop_work(request: Request):
         try:
             opencode_client.abort(base, sid)
         except requests.RequestException:
-            pass
+            _logger.debug("stop_work: se sigue sin ello", exc_info=True)
     try:
         n = comfyui_client.stop_owned(CONFIG["comfyui"]["base_url"], access.owner_of(request.state.session))
         log.info("Detener todo: %d generacion(es) paradas, pedido desde %s", n, routes_agent.where(request))
     except requests.RequestException:
-        pass
+        _logger.debug("stop_work: se sigue sin ello", exc_info=True)
     return {"ok": True}

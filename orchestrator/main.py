@@ -1,6 +1,7 @@
 import contextlib
 import contextvars
 import json
+import logging
 import queue
 import re
 import secrets
@@ -21,18 +22,62 @@ from accounts import auth, auth_sessions, profile_store, push, task_owners
 from agents import comfyui_client
 from agents import video_agent as video_agent_module
 from agents.ollama_client import OllamaClient
-from api import (access, routes_account, routes_agent, routes_apps, routes_auth, routes_media,
-                 routes_models, routes_push, routes_pwa, routes_sessions, routes_work, security)
-from api.replies import MAX_SPEAK_CHARS, assistant_reply, generation_error_message, read_upload, remember, with_bytes
+from api import (
+    access,
+    routes_account,
+    routes_agent,
+    routes_apps,
+    routes_auth,
+    routes_media,
+    routes_models,
+    routes_push,
+    routes_pwa,
+    routes_sessions,
+    routes_work,
+    security,
+)
+from api.replies import (
+    MAX_SPEAK_CHARS,
+    assistant_reply,
+    generation_error_message,
+    read_upload,
+    remember,
+    with_bytes,
+)
 from api.schemas import ChatRequest, ChatResponse
-from chat import (deep_search, file_access, gen_options, job_search, memory, night_queue, plans,
-                  prompt_writer, session_docs, shopping, tools, video_replies)
+from chat import (
+    deep_search,
+    file_access,
+    gen_options,
+    job_search,
+    memory,
+    night_queue,
+    plans,
+    prompt_writer,
+    session_docs,
+    shopping,
+    tools,
+    video_replies,
+)
 from coding import agent_attachments, agent_watch, opencode_client, project_watch
 from infra import computers, metrics, paths
-from infra.core import (AGENTS, CONFIG, image_agent, knowledge_base, log, ollama, router, verifier, video_agent,
-                        vision_agent, voice_agent)
+from infra.core import (
+    AGENTS,
+    CONFIG,
+    image_agent,
+    knowledge_base,
+    log,
+    ollama,
+    router,
+    verifier,
+    video_agent,
+    vision_agent,
+    voice_agent,
+)
 from media import media_store, video_pipeline
 from models import gpu_memory, llm_proxy, llm_status, model_choice
+
+_logger = logging.getLogger(__name__)
 
 opencode_client.WORKDIR = agent_attachments.AGENT_DIR
 video_agent.on_start = lambda text: gen_options.report(text)
@@ -149,7 +194,7 @@ def _on_login(login: dict) -> None:
     try:
         knowledge_base.encrypt_plain_originals(login["id"], login["dek"])
     except OSError:
-        pass
+        _logger.debug("_on_login: se sigue sin ello", exc_info=True)
 
 
 def _delete_user_data(user_id: str) -> None:
@@ -191,7 +236,7 @@ def _is_busy() -> bool:
         if sum(comfyui_client.user_queue(CONFIG["comfyui"]["base_url"])):
             return True
     except Exception:
-        pass
+        _logger.debug("_is_busy: se sigue sin ello", exc_info=True)
     return False
 
 
@@ -224,7 +269,7 @@ def _keep_agent_model_loaded(model: str | None) -> None:
             requests.post(f"{CONFIG['ollama']['base_url']}/api/generate",
                           json={"model": model, "keep_alive": AGENT_KEEP_ALIVE}, timeout=900)
         except requests.RequestException:
-            pass
+            _logger.debug("send: se sigue sin ello", exc_info=True)
 
     threading.Thread(target=send, daemon=True).start()
 
@@ -261,7 +306,7 @@ async def llm_proxy_route(path: str, request: Request):
             try:
                 content = json.dumps(llm_proxy.clean_completion(upstream.json()), ensure_ascii=False).encode("utf-8")
             except ValueError:
-                pass
+                _logger.debug("llm_proxy_route: se sigue sin ello", exc_info=True)
         return Response(content=content, status_code=upstream.status_code,
                         media_type=upstream.headers.get("content-type", "application/json"))
 

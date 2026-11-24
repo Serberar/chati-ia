@@ -44,7 +44,7 @@ knowledgeFileInput.addEventListener("change", async () => {
   knowledgeListBox.innerHTML = '<div style="color:var(--muted); font-size:12px;"><span class="spinner"></span> procesando documento...</div>';
   try {
     await fetch("/knowledge", { method: "POST", body: form });
-  } catch (err) {  }
+  } catch (err) { silenced(err); }
   knowledgeFileInput.value = "";
   await loadKnowledgeList();
 });
@@ -126,7 +126,7 @@ async function loadMemoryEntries() {
       delBtn.textContent = "Borrar";
       delBtn.style.cssText = editBtn.style.cssText;
       delBtn.addEventListener("click", async () => {
-        if (!confirm("¿Borrar esta nota de la memoria?")) return;
+        if (!await askConfirm("¿Borrar esta nota de la memoria?")) return;
         await fetch(`/memory/entries/${encodeURIComponent(entry.id)}`, { method: "DELETE" });
         await loadMemoryEntries();
       });

@@ -1,7 +1,10 @@
 import json
+import logging
 from collections.abc import Callable, Iterator
 
 import requests
+
+_logger = logging.getLogger(__name__)
 
 DEFAULT_KEEP_ALIVE = "30m"
 
@@ -118,7 +121,7 @@ class OllamaClient:
                 timeout=30,
             )
         except requests.RequestException:
-            pass
+            _logger.debug("unload: se sigue sin ello", exc_info=True)
 
     def chat_with_tools_stream(self, model: str, messages: list[dict], tools: list[dict],
                                 temperature: float = 0.7, keep_alive: str = DEFAULT_KEEP_ALIVE,
@@ -179,7 +182,7 @@ class OllamaClient:
                 if m.get("name") == model and m.get("size"):
                     return m.get("size_vram", 0) / m["size"]
         except (requests.RequestException, ValueError, KeyError):
-            pass
+            _logger.debug("gpu_share: se sigue sin ello", exc_info=True)
         return None
 
     def embed(self, model: str, texts: list[str]) -> list[list[float]]:

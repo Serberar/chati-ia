@@ -126,7 +126,7 @@ async function loadModelUpdates(force) {
   modelUpdatesBox.querySelectorAll(".updateModelBtn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const model = btn.dataset.model;
-      if (!confirm(`Se va a descargar la ultima version de ${model}. Puede tardar varios minutos y ocupar varios GB. ¿Continuar?`)) return;
+      if (!await askConfirm(`Se va a descargar la ultima version de ${model}. Puede tardar varios minutos y ocupar varios GB. ¿Continuar?`)) return;
       btn.disabled = true;
       btn.textContent = "Descargando...";
       const resp = await fetch("/models/update", {
@@ -135,28 +135,28 @@ async function loadModelUpdates(force) {
         body: `model=${encodeURIComponent(model)}`,
       });
       const data = await resp.json();
-      alert(data.message || data.detail || "Descarga iniciada.");
+      notify(data.message || data.detail || "Descarga iniciada.");
     });
   });
 
   modelUpdatesBox.querySelectorAll(".deleteModelBtn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const model = btn.dataset.model;
-      if (!confirm(`Se va a borrar '${model}' de este ordenador para liberar disco. Para volver a usarlo habria que descargarlo de nuevo. ¿Continuar?`)) return;
+      if (!await askConfirm(`Se va a borrar '${model}' de este ordenador para liberar disco. Para volver a usarlo habria que descargarlo de nuevo. ¿Continuar?`)) return;
       btn.disabled = true;
       btn.textContent = "Borrando...";
       try {
         const resp = await fetch(`/models/text/${encodeURIComponent(model)}`, { method: "DELETE" });
         const result = await resp.json();
         if (!resp.ok) {
-          alert(result.detail || "No se pudo borrar.");
+          notify(result.detail || "No se pudo borrar.");
           btn.disabled = false;
           btn.textContent = "Borrar";
           return;
         }
         await loadModelUpdates(true);
       } catch (err) {
-        alert("Error de conexion al borrar.");
+        notify("Error de conexion al borrar.");
         btn.disabled = false;
         btn.textContent = "Borrar";
       }
@@ -199,9 +199,7 @@ function renderModelArchSection(container, data, kindLabel, endpointKind) {
         await navigator.clipboard.writeText(btn.dataset.folder);
         btn.textContent = "Copiado";
         setTimeout(() => { btn.textContent = "Copiar ruta"; }, 1500);
-      } catch (err) {
-
-      }
+      } catch (err) { silenced(err); }
     });
   });
 
@@ -209,21 +207,21 @@ function renderModelArchSection(container, data, kindLabel, endpointKind) {
     btn.addEventListener("click", async () => {
       const modelId = btn.dataset.modelId;
       const label = btn.dataset.label;
-      if (!confirm(`Se va a borrar el archivo de '${label}' de este ordenador. Para volver a usarlo habria que descargarlo de nuevo. ¿Continuar?`)) return;
+      if (!await askConfirm(`Se va a borrar el archivo de '${label}' de este ordenador. Para volver a usarlo habria que descargarlo de nuevo. ¿Continuar?`)) return;
       btn.disabled = true;
       btn.textContent = "...";
       try {
         const resp = await fetch(`/models/${endpointKind}/${encodeURIComponent(modelId)}`, { method: "DELETE" });
         const result = await resp.json();
         if (!resp.ok) {
-          alert(result.detail || "No se pudo borrar.");
+          notify(result.detail || "No se pudo borrar.");
           btn.disabled = false;
           btn.textContent = "Borrar";
           return;
         }
         await loadImageVideoModelsBox();
       } catch (err) {
-        alert("Error de conexion al borrar.");
+        notify("Error de conexion al borrar.");
         btn.disabled = false;
         btn.textContent = "Borrar";
       }
@@ -247,13 +245,13 @@ async function loadImageVideoModelsBox() {
 sendBtn.addEventListener("click", () => send());
 // Flecha arriba/abajo recorre los mensajes enviados, como en una terminal, para repetirlos sin reescribir.
 let promptHistory = [];
-try { promptHistory = JSON.parse(localStorage.getItem("ia_prompt_history") || "[]"); } catch (e) {}
+try { promptHistory = JSON.parse(localStorage.getItem("ia_prompt_history") || "[]"); } catch (e) { silenced(e); }
 let historyPos = promptHistory.length;
 function rememberPrompt(text) {
   if (promptHistory[promptHistory.length - 1] !== text) promptHistory.push(text);
   promptHistory = promptHistory.slice(-50);
   historyPos = promptHistory.length;
-  try { localStorage.setItem("ia_prompt_history", JSON.stringify(promptHistory)); } catch (e) {}
+  try { localStorage.setItem("ia_prompt_history", JSON.stringify(promptHistory)); } catch (e) { silenced(e); }
 }
 function recallPrompt(step) {
   const pos = historyPos + step;

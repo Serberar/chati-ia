@@ -1,7 +1,7 @@
 // Los scripts de static/js/app/ son clasicos (no modulos): comparten el ambito global y se cargan en el orden
 // de index.html. Lo que se ejecuta al cargar solo puede usar lo declarado en scripts anteriores.
 // Chati web: utilidades comunes, estado de sesion en localStorage, interceptor de fetch (401) y sendJSON.
-try { localStorage.removeItem("ia_session_token"); } catch (e) {}
+try { localStorage.removeItem("ia_session_token"); } catch (e) { silenced(e); }
 function isLoggedIn() {
   try { return localStorage.getItem("ia_logged_in") === "1"; } catch (e) { return false; }
 }
@@ -9,7 +9,7 @@ function setLoggedIn(role) {
   try {
     localStorage.setItem("ia_logged_in", "1");
     localStorage.setItem("ia_session_role", role || "user");
-  } catch (e) {}
+  } catch (e) { silenced(e); }
 }
 function clearLoggedIn() {
   try {
@@ -18,7 +18,7 @@ function clearLoggedIn() {
 
     localStorage.removeItem("ia_session_id");
     localStorage.removeItem("ia_code_project");
-  } catch (e) {}
+  } catch (e) { silenced(e); }
 }
 function getSessionRole() {
   try { return localStorage.getItem("ia_session_role") || "user"; } catch (e) { return "user"; }

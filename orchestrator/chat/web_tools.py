@@ -1,6 +1,7 @@
 import base64
 import ipaddress
 import json
+import logging
 import re
 import socket
 import time
@@ -9,6 +10,8 @@ from urllib.parse import parse_qs, quote_plus, urlparse
 
 from accounts import profile_store
 from infra import atomic, crypto_utils
+
+_logger = logging.getLogger(__name__)
 
 BING = "https://www.bing.com/search?setlang=es&cc=es&q={q}"
 
@@ -28,7 +31,7 @@ def is_private_host(host: str | None) -> bool:
     try:
         return _ip_is_private(ipaddress.ip_address(host))
     except ValueError:
-        pass
+        _logger.debug("is_private_host: se sigue sin ello", exc_info=True)
     cached = _host_cache.get(host)
     if cached is None or time.monotonic() - cached[1] > _HOST_CACHE_SECONDS:
         try:

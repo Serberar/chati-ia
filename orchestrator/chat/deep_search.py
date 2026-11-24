@@ -6,7 +6,16 @@ import time
 import uuid
 from collections.abc import Callable
 
-from chat.web_tools import Blocked, Browser, ChatFn, EncryptedStore, json_from, site_label
+from chat.web_tools import (
+    Blocked,
+    Browser,
+    ChatFn,
+    EncryptedStore,
+    json_from,
+    site_label,
+)
+
+_logger = logging.getLogger(__name__)
 
 MAX_HISTORY = 10
 MAX_PAGES = 12
@@ -293,7 +302,7 @@ def _pick_link(links: list[tuple[str, str]], chosen, title: str) -> str | None:
         if words & _words(text):
             return href
     except (TypeError, ValueError, IndexError):
-        pass
+        _logger.debug("_pick_link: se sigue sin ello", exc_info=True)
     best = max(links, key=lambda l: len(words & _words(l[0])), default=None)
     return best[1] if best and words & _words(best[0]) else None
 

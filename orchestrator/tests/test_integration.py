@@ -23,7 +23,7 @@ from coding import agent_watch, checkpoints
 from infra.core import text_agent
 from main import CONFIG, app, knowledge_base
 from media import film
-from models import gpu_memory, model_updates, model_registry
+from models import gpu_memory, model_registry, model_updates
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

@@ -11,6 +11,8 @@ import requests
 
 from infra import paths
 
+_logger = logging.getLogger(__name__)
+
 
 class GenerationCancelled(Exception):
     pass
@@ -83,7 +85,7 @@ def _listen(base_url: str) -> None:
                         try:
                             _on_comfy_event(json.loads(frame))
                         except ValueError:
-                            pass
+                            _logger.debug("_listen: se sigue sin ello", exc_info=True)
         except Exception:
             time.sleep(3)
 
@@ -258,7 +260,7 @@ def _submit_and_wait(base_url: str, workflow: dict, save_node: str, output_keys:
     try:
         stop_job(base_url, prompt_id)
     except requests.RequestException:
-        pass
+        _logger.debug("_submit_and_wait: se sigue sin ello", exc_info=True)
     forget(base_url, prompt_id, workflow)
     raise TimeoutError(f"Generacion no termino en {timeout}s (prompt_id={prompt_id})")
 
@@ -312,7 +314,7 @@ def forget(base_url: str, prompt_id: str, workflow: dict, output_info: dict | No
     try:
         requests.post(f"{base_url}/history", json={"delete": [prompt_id]}, timeout=5)
     except requests.RequestException:
-        pass
+        _logger.debug("forget: se sigue sin ello", exc_info=True)
 
 
 def free_memory(base_url: str) -> None:
@@ -325,7 +327,7 @@ def free_memory(base_url: str) -> None:
                 return
             time.sleep(0.5)
     except (requests.RequestException, ValueError, KeyError, IndexError):
-        pass
+        _logger.debug("free_memory: se sigue sin ello", exc_info=True)
 
 
 def interrupt(base_url: str) -> None:

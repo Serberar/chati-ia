@@ -136,7 +136,7 @@ cancelBtn.addEventListener("click", async () => {
   cancelBtn.textContent = "Deteniendo…";
 
   if (currentAbortIsMedia) {
-    try { await fetch("/cancel", { method: "POST" }); } catch (err) {  }
+    try { await fetch("/cancel", { method: "POST" }); } catch (err) { silenced(err); }
   }
   if (currentAbort) currentAbort.abort();
   cancelBtn.disabled = false;

@@ -3,8 +3,18 @@ import threading
 import time
 from pathlib import Path
 
-from coding import (agent_guard, agent_tools, checkpoints, code_checks, lessons, opencode_client, project_git,
-                    project_rules, reviewer, trajectories)
+from coding import (
+    agent_guard,
+    agent_tools,
+    checkpoints,
+    code_checks,
+    lessons,
+    opencode_client,
+    project_git,
+    project_rules,
+    reviewer,
+    trajectories,
+)
 from infra.core import CONFIG, log, ollama
 
 PROJECT_MAP_CHARS = 3000

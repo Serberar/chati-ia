@@ -49,7 +49,7 @@ async function showAgentTaskList() {
   clear.textContent = "🗑 Borrar historial";
   clear.title = "Borra las tareas terminadas (las que estén en marcha se quedan)";
   clear.addEventListener("click", async () => {
-    if (!confirm("¿Borrar el historial de tareas del agente?\n\nSe borran las conversaciones de las tareas terminadas; " +
+    if (!await askConfirm("¿Borrar el historial de tareas del agente?\n\nSe borran las conversaciones de las tareas terminadas; " +
                  "los archivos que cambiaron se quedan como están. Las tareas en marcha no se tocan.")) return;
     clear.disabled = true;
     try {
@@ -58,7 +58,7 @@ async function showAgentTaskList() {
         ? `Historial borrado (${r.borradas}). Quedan ${r.en_marcha} en marcha o esperando tu respuesta.`
         : `Historial borrado (${r.borradas} tareas).`;
     } catch (err) {
-      alert("No se pudo borrar: " + (err.message || err));
+      notify("No se pudo borrar: " + (err.message || err));
       clear.disabled = false;
     }
   });
@@ -86,7 +86,7 @@ const codeState = { project: null, mode: "plan", fast: false, recent: [] };
 try {
   codeState.mode = localStorage.getItem("ia_code_mode") || "plan";
   codeState.fast = localStorage.getItem("ia_code_fast") === "on";
-} catch (e) {  }
+} catch (e) { silenced(e); }
 const codeMenu = document.getElementById("codeProjectMenu");
 
 function renderCodeBar() {
@@ -108,7 +108,7 @@ async function initCodeMode() {
     codeState.recent = data.projects || [];
   } catch (e) { codeState.recent = []; }
   let last = null;
-  try { last = localStorage.getItem("ia_code_project"); } catch (e) {  }
+  try { last = localStorage.getItem("ia_code_project"); } catch (e) { silenced(e); }
   const known = codeState.recent.find((p) => p.path === last && p.exists);
   if (known && !codeState.project) await openCodeProject(known.path, true);
   else if (codeState.project) showCodeWelcome();
@@ -125,11 +125,11 @@ async function openCodeProject(path, quiet = false) {
   try {
     info = await agentPost("/code/projects", { path });
   } catch (err) {
-    if (!quiet) alert(err.message || err);
+    if (!quiet) notify(err.message || err);
     return;
   }
   codeState.project = info;
-  try { localStorage.setItem("ia_code_project", info.path); } catch (e) {  }
+  try { localStorage.setItem("ia_code_project", info.path); } catch (e) { silenced(e); }
   codeState.recent = [info, ...codeState.recent.filter((p) => p.path !== info.path)];
   renderCodeBar();
   codeMenu.classList.remove("show");
@@ -178,7 +178,7 @@ async function showCodeWelcome() {
       }
       bubble.append(t, list);
     }
-  } catch (e) {  }
+  } catch (e) { silenced(e); }
 }
 
 function renderCodeMenu() {
@@ -202,7 +202,7 @@ function renderCodeMenu() {
     try {
       const data = await agentPost("/code/pick_folder");
       if (data.path) await openCodeProject(data.path);
-    } catch (err) { alert(err.message || err); }
+    } catch (err) { notify(err.message || err); }
   });
   codeMenu.appendChild(pick);
   const row = document.createElement("div");
@@ -226,29 +226,29 @@ codeMenu.addEventListener("click", (e) => e.stopPropagation());
 document.addEventListener("click", () => codeMenu.classList.remove("show"));
 document.querySelectorAll("[data-code-mode]").forEach((b) => b.addEventListener("click", () => {
   codeState.mode = b.dataset.codeMode;
-  try { localStorage.setItem("ia_code_mode", codeState.mode); } catch (e) {  }
+  try { localStorage.setItem("ia_code_mode", codeState.mode); } catch (e) { silenced(e); }
   renderCodeBar();
 }));
 document.getElementById("codeFast").addEventListener("change", (e) => {
   codeState.fast = e.target.checked;
-  try { localStorage.setItem("ia_code_fast", codeState.fast ? "on" : "off"); } catch (err) {  }
+  try { localStorage.setItem("ia_code_fast", codeState.fast ? "on" : "off"); } catch (err) { silenced(err); }
   prepareModelsForMode();
 });
 
 (() => {
   const auto = document.getElementById("codeAuto");
-  try { auto.checked = localStorage.getItem("ia_code_auto") === "on"; } catch (e) {  }
+  try { auto.checked = localStorage.getItem("ia_code_auto") === "on"; } catch (e) { silenced(e); }
   auto.addEventListener("change", () => {
-    try { localStorage.setItem("ia_code_auto", auto.checked ? "on" : "off"); } catch (e) {  }
+    try { localStorage.setItem("ia_code_auto", auto.checked ? "on" : "off"); } catch (e) { silenced(e); }
   });
 })();
 document.getElementById("codeGitInit").addEventListener("click", async () => {
   const p = codeState.project;
-  if (!p || !confirm(`¿Activar git en «${p.name}»?\n\nSe crea una carpeta oculta .git en el proyecto. Sirve para que Chati pueda enseñarte y deshacer los cambios del agente. No se sube nada a internet.`)) return;
+  if (!p || !await askConfirm(`¿Activar git en «${p.name}»?\n\nSe crea una carpeta oculta .git en el proyecto. Sirve para que Chati pueda enseñarte y deshacer los cambios del agente. No se sube nada a internet.`)) return;
   try {
     codeState.project = await agentPost("/code/git_init", { path: p.path });
     renderCodeBar();
-  } catch (err) { alert(err.message || err); }
+  } catch (err) { notify(err.message || err); }
 });
 
 const CODE_SHORTCUTS = [
@@ -367,7 +367,7 @@ function renderAgentChoice(task, reason, attachments = []) {
       openAgentView(data.session_id, Date.now());
     } catch (err) {
       btns.querySelectorAll("button").forEach((b) => { b.disabled = false; });
-      alert(String(err.message || err));
+      notify(String(err.message || err));
     }
   };
   const strong = document.createElement("button");
@@ -390,7 +390,7 @@ async function loadAgentShortcuts() {
   try {
     const resp = await fetch("/agent/shortcuts");
     if (resp.ok) agentShortcuts = await resp.json();
-  } catch (e) {  }
+  } catch (e) { silenced(e); }
   renderAgentShortcuts();
 }
 

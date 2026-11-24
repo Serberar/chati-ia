@@ -1,5 +1,6 @@
 """Rutas del agente y del modo codigo: tareas, permisos, preguntas, proyectos y atajos."""
 import json
+import logging
 import re
 import subprocess
 import sys
@@ -16,11 +17,26 @@ from api import access
 from api.replies import MAX_DOC_BYTES, read_upload
 from chat import night_queue, web_tools
 from chat.router import complex_hint
-from coding import (agent_attachments, agent_guard, agent_tools, agent_watch, checkpoints, code_checks, lessons,
-                    opencode_client, prefetch, project_git, project_rules, routines, trajectories)
+from coding import (
+    agent_attachments,
+    agent_guard,
+    agent_tools,
+    agent_watch,
+    checkpoints,
+    code_checks,
+    lessons,
+    opencode_client,
+    prefetch,
+    project_git,
+    project_rules,
+    routines,
+    trajectories,
+)
 from infra import core
 from infra.core import CONFIG, log, ollama, vision_agent
 from models import gpu_memory, llm_status
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -300,7 +316,7 @@ def agent_task_live(request: Request, session_id: str):
                     try:
                         track_text(json.loads(line[5:]))
                     except ValueError:
-                        pass
+                        _logger.debug("events: se sigue sin ello", exc_info=True)
                     bursty = b"message.part.delta" in line or (
                         b"message.part.updated" in line and b'"status":"running"' in line)
                     if bursty and time.time() - last < LIVE_THROTTLE:
@@ -308,7 +324,7 @@ def agent_task_live(request: Request, session_id: str):
                     last = time.time()
                     yield snapshot()
         except requests.RequestException:
-            pass
+            _logger.debug("events: se sigue sin ello", exc_info=True)
         yield "event: end\ndata: {}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream",

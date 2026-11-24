@@ -191,7 +191,7 @@ document.getElementById("shopSearchBtn").addEventListener("click", async () => {
   renderShopStatus();
   followShopping();
 });
-document.getElementById("shopCancelBtn").addEventListener("click", () => agentPost("/shopping/cancel").catch(() => {}));
+document.getElementById("shopCancelBtn").addEventListener("click", () => agentPost("/shopping/cancel").catch(silenced));
 
 function followShopping() {
   if (shopPoll) return;
@@ -202,7 +202,7 @@ function followShopping() {
     if (st.running) { renderShopStatus(); return; }
     clearInterval(shopPoll);
     shopPoll = null;
-    await loadShopping().catch(() => {});
+    await loadShopping().catch(silenced);
     if (st.last_id && !st.error) {
       showShopResult(st.last_id);
       if (shopModal.style.display !== "block") shopUnseen = true;

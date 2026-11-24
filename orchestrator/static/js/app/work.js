@@ -71,7 +71,7 @@ function noticeBackground(p) {
                                                           icon: "/static/icon-192.png" });
       }
     }
-  } catch (e) {  }
+  } catch (e) { silenced(e); }
 }
 
 function doingText(now) {
@@ -210,7 +210,7 @@ async function prepareModelsForMode() {
   if (currentMode === "agente") body.potente = agentPowerToggle.checked;
   if (currentMode === "codigo") {
     let fast = false;
-    try { fast = localStorage.getItem("ia_code_fast") === "on"; } catch (e) {  }
+    try { fast = localStorage.getItem("ia_code_fast") === "on"; } catch (e) { silenced(e); }
     body.potente = !fast;
   }
   if (currentMode === "image" && modelSelect.value) body.image_model = modelSelect.value;
@@ -251,7 +251,7 @@ modelSelect.addEventListener("change", () => { if (["image", "video"].includes(c
 
 function restoreModeAndPrepare() {
   let saved = null;
-  try { saved = localStorage.getItem("ia_mode"); } catch (e) {  }
+  try { saved = localStorage.getItem("ia_mode"); } catch (e) { silenced(e); }
   if (saved && MODES[saved] && saved !== currentMode) {
     applyMode(saved);
   } else {

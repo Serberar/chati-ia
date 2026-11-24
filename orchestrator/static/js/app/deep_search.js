@@ -209,7 +209,7 @@ document.getElementById("deepRefineBtn").addEventListener("click", () => {
   startDeep({ consulta: extra, afinar_de: deepShownId });
 });
 document.getElementById("deepRefine").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("deepRefineBtn").click(); });
-document.getElementById("deepCancelBtn").addEventListener("click", () => agentPost("/deep/cancel").catch(() => {}));
+document.getElementById("deepCancelBtn").addEventListener("click", () => agentPost("/deep/cancel").catch(silenced));
 
 function followDeep() {
   if (deepPoll) return;
@@ -220,7 +220,7 @@ function followDeep() {
     if (st.running) { renderDeepStatus(); return; }
     clearInterval(deepPoll);
     deepPoll = null;
-    await loadDeep().catch(() => {});
+    await loadDeep().catch(silenced);
     if (st.last_id && !st.error) {
       showDeepResult(st.last_id);
       if (deepModal.style.display !== "block") deepUnseen = true;

@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import os
 import re
 import secrets
@@ -14,6 +15,8 @@ from argon2.low_level import Type, hash_secret_raw
 from cryptography.fernet import Fernet, InvalidToken
 
 from infra.paths import DATA_DIR
+
+_logger = logging.getLogger(__name__)
 
 DB_PATH = DATA_DIR / "users.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -168,7 +171,7 @@ def login(username: str, password: str) -> dict:
         try:
             _password_hasher.verify(_DUMMY_HASH, password)
         except VerifyMismatchError:
-            pass
+            _logger.debug("login: se sigue sin ello", exc_info=True)
         raise UserError("Usuario o contraseña incorrectos.")
     try:
         _password_hasher.verify(user["password_hash"], password)

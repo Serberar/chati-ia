@@ -109,7 +109,7 @@ async function loadConversations() {
 const clearAllConvBtn = document.getElementById("clearAllConvBtn");
 clearAllConvBtn.addEventListener("click", async () => {
   const n = Number(clearAllConvBtn.dataset.count || 0);
-  const ok = confirm(
+  const ok = await askConfirm(
     `¿Borrar ${n === 1 ? "la conversacion" : `las ${n} conversaciones`}?\n\n` +
     "Se borran tambien sus fotos, ediciones y documentos adjuntos. " +
     "Lo guardado en \"Mis documentos\" no se toca.\n\nNo se puede deshacer.");
@@ -119,7 +119,7 @@ clearAllConvBtn.addEventListener("click", async () => {
     const resp = await fetch("/sessions", { method: "DELETE" });
     if (!resp.ok) {
       const data = await resp.json().catch(() => ({}));
-      alert(data.detail || "No se pudieron borrar las conversaciones.");
+      notify(data.detail || "No se pudieron borrar las conversaciones.");
       return;
     }
     localStorage.removeItem("ia_session_id");
@@ -135,7 +135,7 @@ async function askDeleteConversation(sessionId) {
   try {
     const resp = await fetch(`/sessions/${sessionId}/docs`);
     if (resp.ok) docs = await resp.json();
-  } catch (e) {  }
+  } catch (e) { silenced(e); }
   const modal = document.getElementById("deleteConvModal");
   const keepBtn = document.getElementById("deleteConvKeep");
   const list = document.getElementById("deleteConvDocs");
@@ -176,7 +176,7 @@ async function askDeleteConversation(sessionId) {
     for (const d of docs) {
       const resp = await fetch(`/sessions/${sessionId}/docs/${encodeURIComponent(d.name)}/keep`, { method: "POST" });
       if (!resp.ok) {
-        alert(`No se pudo guardar "${d.name}" en Mis documentos - no se borra la conversacion.`);
+        notify(`No se pudo guardar "${d.name}" en Mis documentos - no se borra la conversacion.`);
         return false;
       }
     }
@@ -281,7 +281,7 @@ function addLoadedMessage(role, content, agent, messageId, sessionId, media, cre
   });
 
   delBtn.addEventListener("click", async () => {
-    if (!confirm("¿Borrar este mensaje?")) return;
+    if (!await askConfirm("¿Borrar este mensaje?")) return;
     await fetch(`/sessions/${sessionId}/messages/${messageId}`, { method: "DELETE" });
     wrap.remove();
   });

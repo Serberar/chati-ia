@@ -12,6 +12,8 @@ from PIL import Image
 
 from infra.paths import CODE_ROOT, DATA_DIR
 
+_logger = logging.getLogger(__name__)
+
 URL = "http://127.0.0.1:8899"
 ICON_PATH = str(CODE_ROOT / "icono.ico")
 START_SCRIPT = CODE_ROOT / "setup" / "start_all.ps1"
@@ -131,7 +133,7 @@ def _claim_single_instance() -> socket.socket | None:
         try:
             socket.create_connection(("127.0.0.1", INSTANCE_PORT), timeout=3).close()
         except OSError:
-            pass
+            _logger.debug("_claim_single_instance: se sigue sin ello", exc_info=True)
         return None
     srv.listen()
     return srv
@@ -166,7 +168,7 @@ def _set_taskbar_identity() -> None:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SergioBernabe.ChatiIA")
     except (AttributeError, OSError):
-        pass
+        _logger.debug("_set_taskbar_identity: se sigue sin ello", exc_info=True)
 
 
 class DesktopApi:

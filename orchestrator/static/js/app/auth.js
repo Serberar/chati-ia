@@ -116,7 +116,7 @@ document.getElementById("forgotSubmitBtn").addEventListener("click", async () =>
   const resp = await sendJSON("/auth/reset-password", body, "POST", _originalFetch);
   const data = await resp.json();
   if (!resp.ok) { errEl.textContent = data.detail || "No se pudo restablecer."; return; }
-  alert("Contraseña restablecida. Inicia sesion con la nueva contraseña.");
+  notify("Contraseña restablecida. Inicia sesion con la nueva contraseña.");
   forgotFormBox.classList.add("hidden");
   loginFormBox.classList.remove("hidden");
 });
@@ -194,10 +194,10 @@ async function initSessionUI() {
         if (!r.ok) return;
         const cred = await r.json();
         await navigator.clipboard.writeText(cred.password);
-        alert(`OpenCode pide usuario y contraseña.
+        notify(`OpenCode pide usuario y contraseña.
 Usuario: ${cred.user}
 La contraseña ya está copiada: pégala con Ctrl+V.`);
-      } catch (e) {}
+      } catch (e) { silenced(e); }
     });
   }
   if (!me.pc_access) {
