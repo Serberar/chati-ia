@@ -1,5 +1,7 @@
 # Chati IA
 
+**Español** · [English](README.en.md)
+
 [![CI](https://github.com/Serberar/chati-ia/actions/workflows/ci.yml/badge.svg)](https://github.com/Serberar/chati-ia/actions/workflows/ci.yml)
 
 Asistente de IA **local** para Windows: chat, imágenes, vídeo, voz y un agente de código. Los modelos se ejecutan en el propio equipo con Ollama y ComfyUI.
