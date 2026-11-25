@@ -203,19 +203,20 @@ def test_updates_download_only_base_models_never_offered_and_retry_failures(tmp_
     offered = tmp_path / "modelos_ofrecidos.txt"
     monkeypatch.setattr(installer_download_models, "OFFERED_FILE", offered)
     all_ids = set(installer_download_models._all_entries())
-    offered.write_text("\n".join(all_ids - {"video-ltxv", "imagen-sdxl", "imagen-editar"}), encoding="utf-8")
-    assert installer_download_models.new_base_models() == ["imagen-sdxl", "video-ltxv"]
+    offered.write_text("\n".join(all_ids - {"voz-piper", "memoria", "imagen-sdxl"}), encoding="utf-8")
+    # imagen-sdxl no es basico: no se descarga sin que el usuario lo pida
+    assert installer_download_models.new_base_models() == ["memoria", "voz-piper"]
 
     downloaded = []
     def fake_download(ids):
         downloaded.extend(ids)
-        return ["LTX-Video (2B, destilado)"]
+        return ["Voz en español (Piper)"]
     monkeypatch.setattr(installer_download_models, "download_selected", fake_download)
     monkeypatch.setattr(installer_download_models.sys, "argv", ["x", "--new-base"])
     with pytest.raises(SystemExit):
         installer_download_models.main()
-    assert downloaded == ["imagen-sdxl", "video-ltxv"]
-    assert installer_download_models.new_base_models() == ["video-ltxv"]
+    assert downloaded == ["memoria", "voz-piper"]
+    assert installer_download_models.new_base_models() == ["voz-piper"]
 
 
 def test_the_installer_wizard_offers_exactly_the_catalog():

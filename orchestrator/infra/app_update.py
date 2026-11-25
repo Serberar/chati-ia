@@ -14,7 +14,6 @@ _logger = logging.getLogger(__name__)
 
 LATEST_URL = "https://api.github.com/repos/Serberar/chati-ia/releases/latest"
 TOKEN_FILE = MODELS_DIR.parent / "secretos" / "github_token.txt"
-NO_TOKEN = "Falta la clave de GitHub de este ordenador (Opciones > Buscar actualizaciones)."
 ASSET_NAME = "ChatiIA-Instalador.exe"
 CACHE_PATH = DATA_DIR / "app_update.json"
 CACHE_TTL_SECONDS = 6 * 60 * 60
@@ -43,15 +42,19 @@ def has_token() -> bool:
 
 
 def _headers(accept: str) -> dict:
-    if not has_token():
-        raise ValueError(NO_TOKEN)
-    return {"Accept": accept, "Authorization": f"Bearer {TOKEN_FILE.read_text(encoding='utf-8').strip()}"}
+    headers = {"Accept": accept}
+    if has_token():  # opcional: el repositorio es publico
+        headers["Authorization"] = f"Bearer {TOKEN_FILE.read_text(encoding='utf-8').strip()}"
+    return headers
 
 
 def _fetch_latest() -> dict:
     resp = requests.get(LATEST_URL, timeout=10, headers=_headers("application/vnd.github+json"))
-    if resp.status_code in (401, 404):
-        raise ValueError("GitHub no acepta la clave de este ordenador: pon otra en Opciones > Buscar actualizaciones.")
+    if resp.status_code == 401 and has_token():  # clave caducada: se consulta sin ella
+        TOKEN_FILE.unlink(missing_ok=True)
+        resp = requests.get(LATEST_URL, timeout=10, headers=_headers("application/vnd.github+json"))
+    if resp.status_code == 404:
+        raise ValueError("Todavia no hay ninguna version publicada.")
     resp.raise_for_status()
     release = resp.json()
     asset = next((a for a in release.get("assets", []) if a.get("name") == ASSET_NAME), {})
@@ -80,8 +83,7 @@ def check(force: bool = False) -> dict:
         try:
             latest = _fetch_latest()
         except (requests.RequestException, ValueError) as exc:
-            return {"current": VERSION, "latest": None, "available": False, "notes": "", "error": str(exc),
-                    "falta_clave": not has_token()}
+            return {"current": VERSION, "latest": None, "available": False, "notes": "", "error": str(exc)}
         CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
         CACHE_PATH.write_text(json.dumps({"checked_at": time.time(), "latest": latest}, ensure_ascii=False),
                               encoding="utf-8")

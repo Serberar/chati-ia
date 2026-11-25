@@ -28,6 +28,7 @@ spanish.WelcomeCredit=Creada por Sergio Bernabé.
 
 [Tasks]
 Name: "autostart"; Description: "Arrancar Chati al iniciar Windows (si no, arranca al abrirla; se puede cambiar en Opciones)"; Flags: unchecked
+Name: "tailscale"; Description: "Usarla tambien desde el movil con Tailscale (tiene que estar instalado y con sesion)"; Flags: unchecked
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\ChatiIA"
@@ -48,8 +49,8 @@ Name: "{userdesktop}\Chati IA"; Filename: "{app}\ChatiIA\ChatiIA.exe"; \
 
 [Run]
 Filename: "powershell.exe"; \
-    Parameters: "-ExecutionPolicy Bypass -File ""{app}\setup\install.ps1"" -AiRoot ""{app}"" -Autostart {code:AutostartArg}"; \
-    StatusMsg: "Instalando Ollama, ComfyUI y los entornos de Python (puede tardar varios minutos)..."; \
+    Parameters: "-ExecutionPolicy Bypass -File ""{app}\setup\install.ps1"" -AiRoot ""{app}"" -Autostart {code:AutostartArg} -Tailscale {code:TailscaleArg} -ConImagen {code:ImagenArg}"; \
+    StatusMsg: "Instalando lo necesario (puede tardar varios minutos, no cierres la ventana)..."; \
     Flags: waituntilterminated
 Filename: "{app}\orchestrator\venv\Scripts\python.exe"; \
     Parameters: "installer_create_admin.py --from-file ""{tmp}\chati_admin.txt"""; \
@@ -67,6 +68,15 @@ Filename: "{app}\ChatiIA\ChatiIA.exe"; \
     Flags: postinstall nowait skipifsilent runasoriginaluser
 Filename: "{app}\ChatiIA\ChatiIA.exe"; WorkingDir: "{app}\ChatiIA"; \
     Flags: nowait runasoriginaluser; Check: IsUpdate
+
+[UninstallRun]
+Filename: "powershell.exe"; \
+    Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\setup\uninstall.ps1"" -AiRoot ""{app}"""; \
+    RunOnceId: "ChatiUninstall"; Flags: runhidden waituntilterminated
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\orchestrator"
+Type: filesandordirs; Name: "{app}\ChatiIA"
 
 [Code]
 type
@@ -101,23 +111,23 @@ end;
 procedure BuildCatalog(IncludeVideo: Boolean);
 begin
   SetArrayLength(Catalog, 0);
-  AddCatalogItem('texto-rapido', 'Texto', 'Chat rapido',
+  AddCatalogItem('texto-rapido', 'Texto', 'Chat rapido (5,2 GB)',
     'Respuestas breves, conversacion general.', True);
-  AddCatalogItem('texto-calidad', 'Texto', 'Chat de mejor calidad',
-    'Mas lento, menos probable que invente datos.', True);
-  AddCatalogItem('texto-vision', 'Texto', 'Vision (comentar fotos)',
-    'Necesario para poder subir una foto en el chat.', True);
-  AddCatalogItem('agente-rapido', 'Texto', 'Agente (tareas en el ordenador)',
+  AddCatalogItem('agente-rapido', 'Texto', 'Agente: tareas en el ordenador (usa el del chat rapido)',
     'Necesario para el modo Agente: crea, mueve y ordena archivos por ti.', True);
-  AddCatalogItem('memoria', 'Texto', 'Memoria y documentos',
+  AddCatalogItem('memoria', 'Texto', 'Memoria y documentos (0,3 GB)',
     'Necesario para que Chati recuerde conversaciones y busque en tus documentos.', True);
-  AddCatalogItem('imagen-flux', 'Imagen', 'FLUX (rapido, buena calidad)',
-    'El generador de imagen recomendado por defecto.', True);
-  AddCatalogItem('imagen-sdxl', 'Imagen', 'SDXL base',
-    'Otro generador de imagen, con mas estilos disponibles.', True);
+  AddCatalogItem('texto-vision', 'Texto', 'Vision: comentar fotos (6 GB)',
+    'Necesario para poder subir una foto en el chat.', False);
+  AddCatalogItem('texto-calidad', 'Texto', 'Chat y codigo de mejor calidad (18,6 GB, lento)',
+    'Mas lento, menos probable que invente datos. Necesario para el modo Codigo.', False);
+  AddCatalogItem('imagen-flux', 'Imagen', 'FLUX: crear imagenes (12 GB + ComfyUI)',
+    'El generador de imagen recomendado.', False);
+  AddCatalogItem('imagen-sdxl', 'Imagen', 'SDXL: mas estilos (6,9 GB + ComfyUI)',
+    'Otro generador de imagen, con mas estilos disponibles.', False);
   if IncludeVideo then
-    AddCatalogItem('video-ltxv', 'Video', 'LTX-Video (2B, destilado)',
-      'El generador de video recomendado por defecto.', True);
+    AddCatalogItem('video-ltxv', 'Video', 'LTX-Video: video corto (4,5 a 9,4 GB + ComfyUI)',
+      'El generador de video recomendado.', False);
   AddCatalogItem('voz-piper', 'Voz', 'Voz en espanol (Piper)',
     'Necesario para que Chati responda hablando.', True);
 end;
@@ -176,6 +186,42 @@ begin
     Result := 'si'
   else
     Result := 'no';
+end;
+
+function TailscaleArg(Param: String): String;
+begin
+  if IsUpdate then
+    Result := 'igual'
+  else if WizardIsTaskSelected('tailscale') then
+    Result := 'si'
+  else
+    Result := 'no';
+end;
+
+function ImagenArg(Param: String): String;
+var
+  I: Integer;
+begin
+  Result := 'igual';
+  if IsUpdate then
+    Exit;
+  for I := 0 to GetArrayLength(Catalog) - 1 do
+    if ModelsList.Checked[I] and ((Catalog[I].Modality = 'Imagen') or (Catalog[I].Modality = 'Video')) then
+      Result := 'si';
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataRoot: String;
+begin
+  if CurUninstallStep <> usPostUninstall then
+    Exit;
+  DataRoot := ExpandConstant('{localappdata}\ChatiIA');
+  if DirExists(DataRoot) and not UninstallSilent then
+    if MsgBox('¿Borrar tambien tus conversaciones y los modelos descargados?' + #13#10 + DataRoot + #13#10#13#10 +
+              'No se puede deshacer. Si vas a reinstalar Chati, di que No.',
+              mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      DelTree(DataRoot, True, True, True);
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;

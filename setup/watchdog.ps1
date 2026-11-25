@@ -1,5 +1,6 @@
 $AiRoot = Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot\comfy_args.ps1"
+. "$PSScriptRoot\opencode_env.ps1"
 foreach ($name in "OLLAMA_MODELS", "CHATI_DATA_ROOT") {  # ver Update-EnvFromUser
     $value = [Environment]::GetEnvironmentVariable($name, "User")
     if ($value) { Set-Item -Path "Env:$name" -Value $value }
@@ -116,6 +117,7 @@ function Stop-ByPort($port) {
 }
 
 function Ensure-ComfyUI {
+    if (-not (Test-Path "$DataRoot\ComfyUI\venv\Scripts\python.exe")) { return }  # instalado sin imagenes
     if (Test-Down "ComfyUI" "http://127.0.0.1:8188/system_stats" $SlowStartFailures) {
         Write-Log "ComfyUI caido. Reiniciando..."
         Stop-ByPort 8188
@@ -143,9 +145,7 @@ function Ensure-OpenCode {
         Write-Log "Agente de codigo (OpenCode) caido. Reiniciando..."
         Stop-ByPort 8901
         Start-Sleep -Seconds 1
-        $env:OPENCODE_SERVER_PASSWORD = Get-OpenCodePassword
-        Start-Process -FilePath "$env:APPDATA\npm\opencode.cmd" -ArgumentList "serve", "--port", "8901", "--hostname", "127.0.0.1" `
-            -WorkingDirectory $AiRoot -WindowStyle Hidden
+        Start-ChatiOpenCode $AiRoot $DataRoot (Get-OpenCodePassword)
         Write-Log "Agente de codigo reiniciado."
     }
 }

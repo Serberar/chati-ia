@@ -1,6 +1,6 @@
 <!--
   Windows Sandbox para probar el instalador en un Windows limpio (se borra
-  todo al cerrar la ventana). Doble clic en este archivo.
+  todo al cerrar la ventana). Cambia HostFolder por la carpeta del instalador y haz doble clic en este archivo.
   Dentro: el instalador aparece en el Escritorio, en la carpeta "Instalador".
   Requisito (una vez, como administrador y reiniciando):
     Enable-WindowsOptionalFeature -Online -FeatureName Containers-DisposableClientVM -All

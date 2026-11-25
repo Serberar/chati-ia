@@ -1,7 +1,9 @@
 param(
     [string]$AiRoot = (Split-Path -Parent $PSScriptRoot),
     [string]$DataRoot = $(if ($env:LOCALAPPDATA) { "$env:LOCALAPPDATA\ChatiIA" } else { (Split-Path -Parent $PSScriptRoot) }),
-    [ValidateSet("si", "no", "igual")] [string]$Autostart = "no"
+    [ValidateSet("si", "no", "igual")] [string]$Autostart = "no",
+    [ValidateSet("si", "no", "igual")] [string]$Tailscale = "no",   # publicar Chati en la red Tailscale del usuario
+    [ValidateSet("si", "no", "igual")] [string]$ConImagen = "si"    # instalar ComfyUI y PyTorch (imagenes y video)
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +17,11 @@ Write-Host "Datos y modelos: $DataRoot" -ForegroundColor Cyan
 
 setx CHATI_DATA_ROOT "$DataRoot" | Out-Null
 $env:CHATI_DATA_ROOT = $DataRoot
+
+# Si el usuario ya tenia Ollama, es suyo: no se le cambia la carpeta de modelos ni se le cierra.
+$userModels = [Environment]::GetEnvironmentVariable("OLLAMA_MODELS", "User")
+$OllamaPrevio = [bool](Get-Command ollama -ErrorAction SilentlyContinue)
+$OllamaPropio = (-not $OllamaPrevio) -or ($userModels -and $userModels.StartsWith($DataRoot, "OrdinalIgnoreCase"))
 
 New-Item -ItemType Directory -Force -Path $DataRoot | Out-Null
 if (-not ([IO.Path]::GetFullPath($DataRoot).StartsWith([IO.Path]::GetFullPath($env:USERPROFILE), "OrdinalIgnoreCase"))) {
@@ -110,13 +117,17 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host "Git ya instalado." -ForegroundColor Green
 }
 
-setx OLLAMA_MODELS "$DataRoot\models\text" | Out-Null
-$env:OLLAMA_MODELS = "$DataRoot\models\text"
-Write-Host "OLLAMA_MODELS -> $DataRoot\models\text" -ForegroundColor Green
+if ($OllamaPropio) {
+    setx OLLAMA_MODELS "$DataRoot\models\text" | Out-Null
+    $env:OLLAMA_MODELS = "$DataRoot\models\text"
+    Write-Host "OLLAMA_MODELS -> $DataRoot\models\text" -ForegroundColor Green
+} else {
+    if ($userModels) { $env:OLLAMA_MODELS = $userModels }
+    Write-Host "Ya tenias Ollama: Chati usara tus modelos y no cambia su configuracion." -ForegroundColor Green
+}
 
-setx HF_HOME "$DataRoot\models\voice\hf_cache" | Out-Null
+# Solo para este proceso: Chati la fija al arrancar (infra/paths.py), sin tocar la de otros programas.
 $env:HF_HOME = "$DataRoot\models\voice\hf_cache"
-Write-Host "HF_HOME -> $DataRoot\models\voice\hf_cache" -ForegroundColor Green
 
 $piperDir = "$DataRoot\models\voice\piper"
 $piperOnnx = "$piperDir\es_ES-davefx-medium.onnx"
@@ -141,18 +152,21 @@ if (-not (Test-Path $piperOnnx)) {
     Write-Host "Voz de Piper ya presente, no se descarga de nuevo." -ForegroundColor Green
 }
 
-setx OLLAMA_FLASH_ATTENTION "0" | Out-Null
 $env:OLLAMA_FLASH_ATTENTION = "0"
-Write-Host "OLLAMA_FLASH_ATTENTION -> 0 (fix GPUs Blackwell, ollama/ollama#18276)" -ForegroundColor Green
-if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
-    setx HIP_VISIBLE_DEVICES "-1" | Out-Null
-    $env:HIP_VISIBLE_DEVICES = "-1"
+if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { $env:HIP_VISIBLE_DEVICES = "-1" }
+if ($OllamaPropio) {
+    setx OLLAMA_FLASH_ATTENTION "0" | Out-Null
+    Write-Host "OLLAMA_FLASH_ATTENTION -> 0 (fix GPUs Blackwell, ollama/ollama#18276)" -ForegroundColor Green
+    if ($env:HIP_VISIBLE_DEVICES) { setx HIP_VISIBLE_DEVICES "-1" | Out-Null }
+    Get-Process | Where-Object { $_.ProcessName -match "^ollama" } | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
 }
-
-Get-Process | Where-Object { $_.ProcessName -match "^ollama" } | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 1
-Start-Process -FilePath (Get-Command ollama).Source -ArgumentList "serve" -WindowStyle Hidden
-Start-Sleep -Seconds 3
+$ollamaUp = $false
+try { $ollamaUp = (Invoke-WebRequest "http://127.0.0.1:11434/api/tags" -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200 } catch {}
+if (-not $ollamaUp) {
+    Start-Process -FilePath (Get-Command ollama).Source -ArgumentList "serve" -WindowStyle Hidden
+    Start-Sleep -Seconds 3
+}
 ollama list
 
 $ComfyCommit = "30bdda1ef13a3a34fce2cd2fec633f15d832122a"
@@ -163,8 +177,8 @@ $OpenCodeVersion = "1.18.32"
 function Install-Torch($python) {
     & $python -m pip install --pre @TorchPackages --index-url https://download.pytorch.org/whl/nightly/cu128
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "AVISO: la version probada de PyTorch ya no esta disponible; se instala la nightly actual (sin probar)." -ForegroundColor Yellow
-        & $python -m pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+        Write-Host "AVISO: la version probada de PyTorch ya no esta disponible; se instala la estable." -ForegroundColor Yellow
+        & $python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
     }
 }
 
@@ -175,7 +189,11 @@ function Set-PinnedCheckout($dir, $commit) {
 }
 
 $comfy = "$DataRoot\ComfyUI"
-if (-not (Test-Path $comfy)) {
+$InstalarComfy = ($ConImagen -eq "si") -or ($ConImagen -eq "igual" -and (Test-Path "$comfy\venv"))
+if (-not $InstalarComfy) {
+    Write-Host "Sin imagenes ni video: no se instala ComfyUI (vuelve a ejecutar el instalador para anadirlo)." -ForegroundColor Green
+}
+if ($InstalarComfy -and -not (Test-Path $comfy)) {
     Write-Host "Clonando ComfyUI..." -ForegroundColor Yellow
     git clone https://github.com/Comfy-Org/ComfyUI.git $comfy
     Set-PinnedCheckout $comfy $ComfyCommit
@@ -187,14 +205,16 @@ $comfyNodes = @{
 }
 foreach ($name in $comfyNodes.Keys) {
     $nodeDir = "$comfy\custom_nodes\$name"
-    if (-not (Test-Path $nodeDir)) {
+    if ($InstalarComfy -and -not (Test-Path $nodeDir)) {
         Write-Host "Clonando nodo personalizado $name..." -ForegroundColor Yellow
         git clone $comfyNodes[$name][0] $nodeDir
         Set-PinnedCheckout $nodeDir $comfyNodes[$name][1]
     }
 }
 
-if (-not (Test-Path "$comfy\venv")) {
+if (-not $InstalarComfy) {
+    Write-Host "Entorno de ComfyUI omitido." -ForegroundColor DarkGray
+} elseif (-not (Test-Path "$comfy\venv")) {
     Write-Host "Creando entorno virtual de ComfyUI..." -ForegroundColor Yellow
     & $PythonExe -m venv "$comfy\venv"
     & "$comfy\venv\Scripts\python.exe" -m pip install --upgrade pip
@@ -287,7 +307,8 @@ if (-not (Get-Command opencode -ErrorAction SilentlyContinue)) {
     Write-Host "OpenCode ya instalado." -ForegroundColor Green
 }
 
-$opencodeConfigDir = "$env:USERPROFILE\.config\opencode"
+# Carpeta propia (XDG_CONFIG_HOME al arrancar OpenCode): la configuracion de OpenCode del usuario no se toca.
+$opencodeConfigDir = "$DataRoot\opencode-config\opencode"
 if (-not (Test-Path $opencodeConfigDir)) {
     New-Item -ItemType Directory -Path $opencodeConfigDir -Force | Out-Null
 }
@@ -412,12 +433,15 @@ if ($Autostart -eq "si" -or ($Autostart -eq "igual" -and (Test-Path $startupLink
     Write-Host "Chati no arrancara al iniciar Windows (se puede cambiar en Opciones)." -ForegroundColor Green
 }
 
-$tailscale = "$env:ProgramFiles\Tailscale\tailscale.exe"
-if (Test-Path $tailscale) {
-    & $tailscale status *> $null
+$tailscaleExe = "$env:ProgramFiles\Tailscale\tailscale.exe"
+if ($Tailscale -ne "si") {
+    Write-Host "Chati no se publica en Tailscale (install.ps1 -Tailscale si para usarla desde el movil)." -ForegroundColor DarkGray
+} elseif (Test-Path $tailscaleExe) {
+    & $tailscaleExe status *> $null
     if ($LASTEXITCODE -eq 0) {
-        & $tailscale serve --bg http://127.0.0.1:8899
+        & $tailscaleExe serve --bg http://127.0.0.1:8899
         if ($LASTEXITCODE -eq 0) {
+            Set-Content -Path "$DataRoot\data\tailscale_publicado.txt" -Value "si" -Encoding ascii
             Write-Host "Chati publicada en Tailscale (solo para tus dispositivos)." -ForegroundColor Green
         } else {
             Write-Host "AVISO: no se pudo publicar Chati en Tailscale (tailscale serve)." -ForegroundColor Yellow

@@ -99,7 +99,7 @@ def test_install_runs_the_verified_installer_in_update_mode(monkeypatch):
     assert Path(path).read_bytes() == body
 
 
-def test_the_private_repo_is_read_with_this_computers_token_and_asks_for_one_if_missing(monkeypatch):
+def test_updates_work_without_a_github_token_and_use_it_if_there_is_one(monkeypatch):
     seen = []
 
     class _Resp:
@@ -117,7 +117,38 @@ def test_the_private_repo_is_read_with_this_computers_token_and_asks_for_one_if_
     assert seen[0]["Authorization"] == "Bearer github_pat_prueba"
     app_update.TOKEN_FILE.unlink()
     info = app_update.check(force=True)
-    assert info["falta_clave"] and "clave" in info["error"]
+    assert "Authorization" not in seen[-1]
+    assert info["error"] is None and info["latest"] == "1.2.0"
+
+
+def test_an_expired_token_is_dropped_and_the_check_still_works(monkeypatch):
+    calls = []
+
+    class _Resp:
+        def __init__(self, status):
+            self.status_code = status
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"tag_name": "v1.2.0", "assets": []}
+
+    def fake_get(url, **k):
+        calls.append(k["headers"])
+        return _Resp(401 if "Authorization" in k["headers"] else 200)
+
+    monkeypatch.setattr(app_update.requests, "get", fake_get)
+    assert app_update._fetch_latest()["version"] == "1.2.0"
+    assert len(calls) == 2 and not app_update.has_token()
+
+
+def test_without_published_releases_it_says_so(monkeypatch):
+    class _Resp:
+        status_code = 404
+
+    monkeypatch.setattr(app_update.requests, "get", lambda url, **k: _Resp())
+    assert "ninguna version publicada" in app_update.check(force=True)["error"]
 
 
 def test_install_without_newer_version_does_nothing(monkeypatch):
