@@ -44,10 +44,10 @@ Instala lo que te falte: Python, Git, Ollama, Node.js y OpenCode. **Si ya tienes
 
 ### Comprobar la descarga (opcional)
 
-Junto al instalador se publica `ChatiIA-Instalador.exe.sha256`. En PowerShell, el resultado tiene que ser el mismo:
+Junto al instalador, en *Releases*, se publica su huella SHA-256. En PowerShell, el resultado tiene que ser el mismo:
 
 ```powershell
-Get-FileHash .\ChatiIA-Instalador.exe
+Get-FileHash "<ruta del instalador>"
 ```
 
 ## Qué incluye
