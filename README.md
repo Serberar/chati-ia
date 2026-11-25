@@ -8,11 +8,9 @@ Asistente de IA **local** para Windows: chat, imágenes, vídeo, voz y un agente
 
 ![Conversación en Chati](docs/chat.png)
 
-## Descargar e instalar
+## Instalar
 
-### [⬇ Descargar Chati para Windows](https://github.com/Serberar/chati-ia/releases/latest/download/ChatiIA-Instalador.exe)
-
-1. **Pulsa el enlace de arriba.** Se descarga `ChatiIA-Instalador.exe` (mira en tu carpeta Descargas).
+1. **Consigue el instalador** en el apartado *Releases* de este repositorio.
 2. **Ábrelo con doble clic.** Si Windows dice *«Windows protegió su PC»*, pulsa **Más información** y luego **Ejecutar de todas formas**. Sale porque el programa no está firmado, que es un certificado de pago.
 3. **Crea tu usuario y tu contraseña.** Son solo para tu ordenador. Apúntala: con ella se cifran tus conversaciones.
 4. **Elige los modelos.** Lo básico ya viene marcado. Si no sabes cuál, no toques nada.

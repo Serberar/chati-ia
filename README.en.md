@@ -4,11 +4,9 @@ Local AI assistant for Windows: chat, images, video, voice and a coding agent. M
 
 ![A conversation in Chati](docs/chat.png)
 
-## Download and install
+## Install
 
-### [⬇ Download Chati for Windows](https://github.com/Serberar/chati-ia/releases/latest/download/ChatiIA-Instalador.exe)
-
-1. **Click the link above** and open `ChatiIA-Instalador.exe`.
+1. **Get the installer** from the *Releases* section of this repository and open it.
 2. If Windows says *"Windows protected your PC"*, click **More info** and then **Run anyway**. The app is not code-signed.
 3. **Create your user and password.** They stay on your computer. Your conversations are encrypted with that password.
 4. **Choose the models.** The basics are already selected (about 6 GB).
