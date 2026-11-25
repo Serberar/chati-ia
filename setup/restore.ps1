@@ -1,6 +1,6 @@
 param(
     [string]$Zip = "",
-    [string]$CarpetaCopias = "$env:USERPROFILE\OneDrive\IA-Personal-Backups",
+    [string]$CarpetaCopias = "",  # vacio: <datos>\copias
     [string]$DataRoot = ""
 )
 
@@ -12,6 +12,7 @@ $chatiDataRoot = if (Test-Path "$AiRoot\.git") { $AiRoot }  # copia de desarroll
                  elseif ($env:LOCALAPPDATA) { "$env:LOCALAPPDATA\ChatiIA" }
                  else { $AiRoot }
 if (-not $DataRoot) { $DataRoot = $chatiDataRoot }
+if (-not $CarpetaCopias) { $CarpetaCopias = "$chatiDataRoot\copias" }
 $data = "$DataRoot\data"
 $isLiveData = [IO.Path]::GetFullPath($DataRoot).TrimEnd("\") -eq [IO.Path]::GetFullPath($chatiDataRoot).TrimEnd("\")
 

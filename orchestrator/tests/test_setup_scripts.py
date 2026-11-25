@@ -26,3 +26,9 @@ def test_tailscale_and_images_are_opt_in():
     assert re.search(r'\$Tailscale = "no"', text)
     assert text.index('$Tailscale -ne "si"') < text.index("serve --bg")
     assert "-Tailscale {code:TailscaleArg} -ConImagen {code:ImagenArg}" in _read("chati_installer.iss")
+
+
+def test_backups_stay_on_the_computer():
+    for name in ("backup.ps1", "restore.ps1", "watchdog.ps1"):
+        assert "OneDrive" not in _read(name), name
+    assert '"webview"' in _read("backup.ps1")

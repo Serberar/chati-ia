@@ -135,7 +135,7 @@ powershell -ExecutionPolicy Bypass -File setup/backup.ps1
 powershell -ExecutionPolicy Bypass -File setup/restore.ps1
 ```
 
-Por defecto las copias van a una carpeta de OneDrive y se conservan las 14 últimas; se cambia con `-Destino` y `-Mantener`.
+Chati hace una copia al día en su propia carpeta (`copias`) y guarda las 14 últimas. **No sube nada a la nube.** Para guardarlas en otro sitio, usa `-Destino` y `-Mantener`.
 
 ## Publicar una versión
 

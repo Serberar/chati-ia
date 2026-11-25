@@ -153,7 +153,13 @@ function Ensure-OpenCode {
 function Ensure-DailyBackup {
     $marker = $BackupMarker
     $today = Get-Date -Format "yyyy-MM-dd"
-    $last = if (Test-Path $marker) { Get-Content $marker -Raw } else { "" }
+    if (-not (Test-Path $marker)) {
+        # Recien instalada: aun no hay nada que copiar y reiniciaria Chati en el primer uso.
+        New-Item -ItemType Directory -Path (Split-Path -Parent $marker) -Force | Out-Null
+        Set-Content -Path $marker -Value $today
+        return
+    }
+    $last = Get-Content $marker -Raw
     if ($last.Trim() -ne $today) {
         $hour = (Get-Date).Hour
         $overdue = $true

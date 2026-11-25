@@ -1,5 +1,5 @@
 param(
-    [string]$Destino = "$env:USERPROFILE\OneDrive\IA-Personal-Backups",
+    [string]$Destino = "",  # vacio: <datos>\copias. A la nube, solo si se pide aqui
     [int]$Mantener = 14  # cuantas copias recientes conservar
 )
 
@@ -11,6 +11,7 @@ $DataRoot = if (Test-Path "$AiRoot\.git") { $AiRoot }  # copia de desarrollo, ve
             elseif ($env:LOCALAPPDATA) { "$env:LOCALAPPDATA\ChatiIA" }
             else { $AiRoot }
 $origen = "$DataRoot\data"
+if (-not $Destino) { $Destino = "$DataRoot\copias" }
 $fecha = Get-Date -Format "yyyy-MM-dd_HHmm"
 $nombreZip = "ia-personal-data_$fecha.zip"
 
@@ -45,7 +46,8 @@ if (-not (Test-Path $Destino)) {
 }
 
 $zipPath = Join-Path $Destino $nombreZip
-$noCopiar = @("opencode_password.txt", "registration_key.txt", "api_key.txt", "logs", "metrics.jsonl", "arranque.log")
+$noCopiar = @("opencode_password.txt", "registration_key.txt", "api_key.txt", "logs", "metrics.jsonl", "arranque.log",
+              "webview", "sesiones_recordadas.json")  # sesiones del navegador: ademas, en uso fallan al comprimir
 $items = Get-ChildItem -LiteralPath $origen -Force | Where-Object { $noCopiar -notcontains $_.Name }
 Compress-Archive -LiteralPath $items.FullName -DestinationPath $zipPath -Force
 Write-Host "Backup creado: $zipPath" -ForegroundColor Green
