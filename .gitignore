@@ -38,7 +38,6 @@ __pycache__/
 
 # Logs y estado de los scripts de setup/watchdog
 *.log
-/setup/last_backup.txt
 
 # Artefactos sueltos de pruebas manuales en vivo hechas directamente en la
 # raiz de orchestrator/ durante el desarrollo (no forman parte de la app)
@@ -61,4 +60,3 @@ Thumbs.db
 # Pantalla de inicio de la app del movil: repo aparte (Serberar.github.io)
 /inicio/
 .env
-copias/

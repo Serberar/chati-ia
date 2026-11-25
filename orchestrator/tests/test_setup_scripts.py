@@ -28,7 +28,8 @@ def test_tailscale_and_images_are_opt_in():
     assert "-Tailscale {code:TailscaleArg} -ConImagen {code:ImagenArg}" in _read("chati_installer.iss")
 
 
-def test_backups_stay_on_the_computer():
-    for name in ("backup.ps1", "restore.ps1", "watchdog.ps1"):
-        assert "OneDrive" not in _read(name), name
-    assert '"webview"' in _read("backup.ps1")
+def test_conversations_are_never_copied_out():
+    assert not (SETUP / "backup.ps1").exists()
+    for script in SETUP.glob("*.ps1"):
+        text = script.read_text(encoding="utf-8-sig")
+        assert "OneDrive" not in text and "backup" not in text.lower(), script.name

@@ -14,10 +14,6 @@ $DataRoot = if (Test-Path "$AiRoot\.git") { $AiRoot }
 $StateDir = "$DataRoot\data\logs"
 New-Item -ItemType Directory -Path $StateDir -Force -ErrorAction SilentlyContinue | Out-Null
 $LogFile = "$StateDir\watchdog.log"
-$BackupMarker = "$StateDir\last_backup.txt"
-if (-not (Test-Path $BackupMarker) -and (Test-Path "$PSScriptRoot\last_backup.txt")) {
-    Copy-Item "$PSScriptRoot\last_backup.txt" $BackupMarker -ErrorAction SilentlyContinue  # de antes del cambio
-}
 $CheckIntervalSeconds = 30
 $FailuresBeforeRestart = 2
 $SlowStartFailures = 4
@@ -150,39 +146,10 @@ function Ensure-OpenCode {
     }
 }
 
-function Ensure-DailyBackup {
-    $marker = $BackupMarker
-    $today = Get-Date -Format "yyyy-MM-dd"
-    if (-not (Test-Path $marker)) {
-        # Recien instalada: aun no hay nada que copiar y reiniciaria Chati en el primer uso.
-        New-Item -ItemType Directory -Path (Split-Path -Parent $marker) -Force | Out-Null
-        Set-Content -Path $marker -Value $today
-        return
-    }
-    $last = Get-Content $marker -Raw
-    if ($last.Trim() -ne $today) {
-        $hour = (Get-Date).Hour
-        $overdue = $true
-        try { $overdue = ((Get-Date) - [datetime]::ParseExact($last.Trim(), "yyyy-MM-dd", $null)).TotalDays -ge 2 } catch {}
-        if (-not $overdue -and ($hour -lt 3 -or $hour -ge 7)) { return }
-        try {
-            $h = Invoke-RestMethod -Uri "http://127.0.0.1:8899/health?busy=true" -TimeoutSec 30
-            if ($h.busy) { return }
-        } catch {}  # orquestador caido: se puede copiar igualmente
-        Write-Log "Backup diario pendiente. Ejecutando..."
-        try {
-            & powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\backup.ps1" *>> $LogFile
-            Write-Log "Backup diario completado."
-        } catch {
-            Write-Log "Backup diario fallo: $_"
-        }
-    }
-}
-
 Write-Log "Watchdog iniciado."
 
 while ($true) {
-    foreach ($check in "Ensure-Ollama", "Ensure-ComfyUI", "Ensure-Orchestrator", "Ensure-OpenCode", "Ensure-DailyBackup") {
+    foreach ($check in "Ensure-Ollama", "Ensure-ComfyUI", "Ensure-Orchestrator", "Ensure-OpenCode") {
         try { & $check } catch { Write-Log "Fallo en ${check}: $_" }
     }
     Start-Sleep -Seconds $CheckIntervalSeconds

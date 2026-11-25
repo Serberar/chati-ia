@@ -32,13 +32,16 @@ Name: "tailscale"; Description: "Usarla tambien desde el movil con Tailscale (ti
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\ChatiIA"
+; La copia automatica de versiones anteriores ya no existe
+Type: files; Name: "{app}\setup\backup.ps1"
+Type: files; Name: "{app}\setup\restore.ps1"
 
 [Files]
 Source: "stop_chati.ps1"; Flags: dontcopy
 Source: "..\orchestrator\*"; DestDir: "{app}\orchestrator"; Flags: recursesubdirs ignoreversion; \
     Excludes: "venv\*,__pycache__\*,.pytest_cache\*,outputs\*,test_*.png,test_*.mp4,test_*.wav,test_*.webm,i2v_*.png,server.log"
 Source: "..\setup\*"; DestDir: "{app}\setup"; Flags: recursesubdirs ignoreversion; \
-    Excludes: "watchdog.log,watchdog.log.old,last_backup.txt,chati_installer.iss,build_release.ps1,probar_instalador.wsb,Output\*"
+    Excludes: "watchdog.log,watchdog.log.old,chati_installer.iss,build_release.ps1,probar_instalador.wsb,Output\*"
 Source: "..\icono.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\logo.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\ChatiIA\*"; DestDir: "{app}\ChatiIA"; Flags: recursesubdirs ignoreversion

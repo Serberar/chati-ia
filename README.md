@@ -126,16 +126,7 @@ python -m pytest -m "not live and not slow"
 | `orchestrator/static/` | Interfaz web |
 | `orchestrator/workflows/` | Flujos de ComfyUI |
 | `orchestrator/tests/` | Pruebas |
-| `setup/` | Instalación, arranque, copias de seguridad y compilación |
-
-## Copias de seguridad
-
-```powershell
-powershell -ExecutionPolicy Bypass -File setup/backup.ps1
-powershell -ExecutionPolicy Bypass -File setup/restore.ps1
-```
-
-Chati hace una copia al día en su propia carpeta (`copias`) y guarda las 14 últimas. **No sube nada a la nube.** Para guardarlas en otro sitio, usa `-Destino` y `-Mantener`.
+| `setup/` | Instalación, arranque y compilación |
 
 ## Publicar una versión
 
