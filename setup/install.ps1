@@ -8,6 +8,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force -Path "$DataRoot\data\logs" -ErrorAction SilentlyContinue | Out-Null
+# El instalador mira este archivo: si no esta al acabar, es que se corto y avisa.
+$okFile = "$DataRoot\data\instalacion_ok.txt"
+Remove-Item $okFile -Force -ErrorAction SilentlyContinue
 try { Start-Transcript -Path "$DataRoot\data\logs\instalacion.log" -Append | Out-Null } catch {}
 $ProgressPreference = "SilentlyContinue"
 
@@ -437,6 +440,8 @@ $tailscaleExe = "$env:ProgramFiles\Tailscale\tailscale.exe"
 if ($Tailscale -ne "si") {
     Write-Host "Chati no se publica en Tailscale (install.ps1 -Tailscale si para usarla desde el movil)." -ForegroundColor DarkGray
 } elseif (Test-Path $tailscaleExe) {
+    # En PowerShell 5.1, con "Stop", un aviso por stderr cortaria la instalacion.
+    $ErrorActionPreference = "Continue"
     & $tailscaleExe status *> $null
     if ($LASTEXITCODE -eq 0) {
         & $tailscaleExe serve --bg http://127.0.0.1:8899
@@ -453,6 +458,8 @@ if ($Tailscale -ne "si") {
     Write-Host "Tailscale no esta instalado: para usar Chati desde el movil, instalalo (tailscale.com) y vuelve a ejecutar install.ps1." -ForegroundColor Yellow
 }
 
+$ErrorActionPreference = "Stop"
+Set-Content -Path $okFile -Value (Get-Date -Format "yyyy-MM-dd HH:mm:ss") -Encoding ascii
 Write-Host "`n=== Listo. Modelos de texto/codigo disponibles via 'ollama list'. ===" -ForegroundColor Cyan
 Write-Host "Para arrancar todo: doble clic en 'Chati IA' del escritorio," -ForegroundColor Cyan
 Write-Host "o powershell -ExecutionPolicy Bypass -File $AiRoot\setup\start_all.ps1" -ForegroundColor Cyan

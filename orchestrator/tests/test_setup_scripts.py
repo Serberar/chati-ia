@@ -33,3 +33,10 @@ def test_conversations_are_never_copied_out():
     for script in SETUP.glob("*.ps1"):
         text = script.read_text(encoding="utf-8-sig")
         assert "OneDrive" not in text and "backup" not in text.lower(), script.name
+
+
+def test_an_interrupted_install_is_noticed():
+    ps1, iss = _read("install.ps1"), _read("chati_installer.iss")
+    assert ps1.index("Remove-Item $okFile") < ps1.index("=== Instalando") < ps1.index("Set-Content -Path $okFile")
+    assert "instalacion_ok.txt" in iss and "AvisarSiSeCorto;" in iss
+    assert "runhidden; Check: IsUpdate" in iss

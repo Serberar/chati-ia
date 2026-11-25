@@ -54,7 +54,11 @@ Name: "{userdesktop}\Chati IA"; Filename: "{app}\ChatiIA\ChatiIA.exe"; \
 Filename: "powershell.exe"; \
     Parameters: "-ExecutionPolicy Bypass -File ""{app}\setup\install.ps1"" -AiRoot ""{app}"" -Autostart {code:AutostartArg} -Tailscale {code:TailscaleArg} -ConImagen {code:ImagenArg}"; \
     StatusMsg: "Instalando lo necesario (puede tardar varios minutos, no cierres la ventana)..."; \
-    Flags: waituntilterminated
+    Flags: waituntilterminated; Check: not IsUpdate
+Filename: "powershell.exe"; \
+    Parameters: "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ""{app}\setup\install.ps1"" -AiRoot ""{app}"" -Autostart {code:AutostartArg} -Tailscale {code:TailscaleArg} -ConImagen {code:ImagenArg}"; \
+    StatusMsg: "Actualizando..."; \
+    Flags: waituntilterminated runhidden; Check: IsUpdate
 Filename: "{app}\orchestrator\venv\Scripts\python.exe"; \
     Parameters: "installer_create_admin.py --from-file ""{tmp}\chati_admin.txt"""; \
     WorkingDir: "{app}\orchestrator"; \
@@ -342,12 +346,23 @@ begin
   end;
 end;
 
+procedure AvisarSiSeCorto;
+begin
+  if not FileExists(ExpandConstant('{localappdata}\ChatiIA\data\instalacion_ok.txt')) then
+    MsgBox('La instalacion se ha cortado antes de terminar y Chati puede no funcionar.' + #13#10#13#10 +
+           'Vuelve a abrir el instalador y no cierres la ventana negra: lo ya descargado no se repite.' + #13#10#13#10 +
+           'Si vuelve a pasar, el detalle esta en:' + #13#10 +
+           ExpandConstant('{localappdata}\ChatiIA\data\logs\instalacion.log'), mbError, MB_OK);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Lines: TArrayOfString;
   I, Count: Integer;
   LogFile, DataRoot: String;
 begin
+  if CurStep = ssDone then
+    AvisarSiSeCorto;
   if (CurStep = ssDone) and not IsUpdate then
   begin
     DataRoot := ExpandConstant('{localappdata}\ChatiIA');  // ver UsersAlreadyExist

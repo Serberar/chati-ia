@@ -4,7 +4,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $python = "$AiRoot\orchestrator\venv\Scripts\python.exe"
+$ErrorActionPreference = "Continue"  # si falta, el aviso por stderr no debe cortar
 & $python -m PyInstaller --version *> $null
+$ErrorActionPreference = "Stop"
 if ($LASTEXITCODE -ne 0) {
     & $python -m pip install pyinstaller
 }
