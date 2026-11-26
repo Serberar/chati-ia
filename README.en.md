@@ -4,6 +4,18 @@ Local AI assistant for Windows: chat, images, video, voice and a coding agent. M
 
 ![A conversation in Chati](docs/chat.png)
 
+## Install
+
+1. **Get the installer** from the *Releases* section of this repository and open it.
+2. If Windows says *"Windows protected your PC"*, click **More info** and then **Run anyway**. The app is not code-signed.
+3. **Create your user and password.** They stay on your computer. Your conversations are encrypted with that password.
+4. **Choose the models.** The basics are already selected (about 6 GB).
+5. **Wait** for the downloads and open **Chati IA** from the desktop.
+
+The installer and the app are in Spanish. Recommended: Windows 11, 32 GB of RAM and an NVIDIA card with 8 GB or more. It also runs without a graphics card, slowly.
+
+If you already have Ollama or OpenCode, their settings and your models are left untouched. To uninstall: **Settings > Apps > Chati IA**.
+
 ## What it does
 
 - **Chat** with local Ollama models, memory, documents (RAG), web search and deep search.

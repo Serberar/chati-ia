@@ -11,7 +11,7 @@ from pathlib import Path
 
 import requests
 
-from infra.paths import DATA_DIR, MODELS_DIR
+from infra.paths import DATA_DIR, MODELS_DIR, _user_env_from_registry
 from models import model_catalog, model_registry
 
 _logger = logging.getLogger(__name__)
@@ -102,7 +102,10 @@ def _ensure_ollama_server() -> None:
         return
     except requests.RequestException:
         _logger.debug("_ensure_ollama_server: se sigue sin ello", exc_info=True)
-    env = {**os.environ, "OLLAMA_MODELS": str(MODELS_DIR / "text"), "OLLAMA_FLASH_ATTENTION": "0"}
+    env = {**os.environ, "OLLAMA_FLASH_ATTENTION": "0"}
+    models_dir = _user_env_from_registry("OLLAMA_MODELS")  # recien fijada por install.ps1; sin ella, la de Ollama
+    if models_dir:
+        env["OLLAMA_MODELS"] = models_dir
     if shutil.which("nvidia-smi"):
         env["HIP_VISIBLE_DEVICES"] = "-1"
     subprocess.Popen([_ollama_exe(), "serve"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

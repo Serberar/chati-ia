@@ -214,13 +214,6 @@ async function setupAppUpdates() {
   const checkNow = async () => {
     const info = await fetchAppUpdate(true);
     if (!info) { notify("No se pudo comprobar si hay actualizaciones."); return; }
-    if (info.error && (info.falta_clave || info.error.includes("clave"))) {
-      const token = await askText(`${info.error}\n\nPega un token de GitHub de solo lectura (github.com > Settings > Developer settings > Fine-grained tokens, repo Serberar/chati, permiso Contents: Read-only):`);
-      if (!token) return;
-      const resp = await sendJSON("/app/github_token", { token });
-      if (!resp.ok) { notify((await resp.json()).detail || "No se pudo guardar."); return; }
-      return checkNow();
-    }
     if (info.error) { notify(`No se pudo comprobar si hay actualizaciones: ${info.error}`); return; }
     if (!info.available) { notify(`Chati está al día (versión ${info.current}).`); return; }
     optionsModal.style.display = "none";

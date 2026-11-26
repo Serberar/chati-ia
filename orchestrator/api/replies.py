@@ -1,9 +1,11 @@
 """Respuestas del chat: subidas, adjuntar medios y mensajes de error de generacion."""
+import requests
 from fastapi import UploadFile
 
 from agents.comfyui_client import GenerationCancelled
 from api.schemas import ChatResponse
 from chat import memory
+from infra import paths
 from infra.core import log
 from media import content_guard, media_store
 
@@ -36,6 +38,9 @@ def generation_error_message(action: str, exc: Exception) -> str:
         log.error("Fallo %s: %s", action, exc, exc_info=exc)
     if isinstance(exc, GenerationCancelled):
         return "Se ha cancelado la generación. Puedes reintentarlo con el botón."
+    if isinstance(exc, requests.ConnectionError) and not (paths.DATA_ROOT / "ComfyUI").exists():
+        return ("Este Chati se instaló sin imágenes ni vídeo. Vuelve a ejecutar el instalador y marca "
+                "un modelo de imagen o de vídeo para añadirlos.")
     if "no termino" in str(exc):
         return ("No ha terminado a tiempo: el equipo estaba demasiado ocupado. "
                 "Puedes reintentarlo con el botón.")

@@ -34,3 +34,6 @@ DATA_DIR = DATA_ROOT / "data"
 MODELS_DIR = (_installed_root / "models" if DEV_CHECKOUT and (_installed_root / "models").is_dir()
               else DATA_ROOT / "models")
 OUTPUT_DIR = DATA_ROOT / "outputs"
+
+# Solo para Chati: antes se cambiaba con setx y afectaba a todos los programas del usuario.
+os.environ.setdefault("HF_HOME", str(MODELS_DIR / "voice" / "hf_cache"))

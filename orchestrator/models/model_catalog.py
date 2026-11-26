@@ -37,12 +37,12 @@ _BASE_CATALOG: list[CatalogEntry] = [
         ollama_model="qwen3:8b",
     ),
     CatalogEntry(
-        id="texto-calidad", modality="texto", label="Chat de mejor calidad",
+        id="texto-calidad", recommended_by_default=False, modality="texto", label="Chat de mejor calidad",
         description="Mas lento, menos probable que invente datos - programacion y respuestas mas elaboradas.",
         ollama_model="qwen3-coder:30b-cpu",
     ),
     CatalogEntry(
-        id="texto-vision", modality="texto", label="Vision (comentar fotos)",
+        id="texto-vision", recommended_by_default=False, modality="texto", label="Vision (comentar fotos)",
         description="Necesario para poder subir una foto en el chat y que la describa.",
         ollama_model="qwen2.5vl:7b-gpu",
     ),
@@ -57,7 +57,7 @@ _BASE_CATALOG: list[CatalogEntry] = [
         ollama_model="nomic-embed-text",
     ),
     CatalogEntry(
-        id="imagen-flux", modality="imagen", label="FLUX (rapido, buena calidad general)",
+        id="imagen-flux", recommended_by_default=False, modality="imagen", label="FLUX (rapido, buena calidad general)",
         description="El generador de imagen recomendado por defecto.",
         architecture="flux",
         download_url="https://huggingface.co/city96/FLUX.1-schnell-gguf/resolve/f495746ed9c5efcf4661f53ef05401dceadc17d2/flux1-schnell-Q4_K_S.gguf",
@@ -66,7 +66,7 @@ _BASE_CATALOG: list[CatalogEntry] = [
         extra_files=(_CLIP_L, _T5XXL, _FLUX_VAE, _REALESRGAN),
     ),
     CatalogEntry(
-        id="imagen-sdxl", modality="imagen", label="SDXL base",
+        id="imagen-sdxl", recommended_by_default=False, modality="imagen", label="SDXL base",
         description="Otro generador de imagen, con mas estilos disponibles.",
         architecture="sdxl",
         download_url="https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/462165984030d82259a11f4367a4eed129e94a7b/sd_xl_base_1.0.safetensors",
@@ -74,7 +74,7 @@ _BASE_CATALOG: list[CatalogEntry] = [
         sha256="31e35c80fc4829d14f90153f4c74cd59c90b779f6afe05a74cd6120b893f7e5b",
     ),
     CatalogEntry(
-        id="video-ltxv", modality="video", label="LTX-Video (2B, destilado)",
+        id="video-ltxv", recommended_by_default=False, modality="video", label="LTX-Video (2B, destilado)",
         description="El generador de video recomendado por defecto - rapido para su tamaño.",
         architecture="ltxv",
         download_url="https://huggingface.co/Lightricks/LTX-Video/resolve/8984fa25007f376c1a299016d0957a37a2f797bb/ltxv-2b-0.9.8-distilled-fp8.safetensors",
