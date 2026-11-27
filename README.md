@@ -23,7 +23,7 @@ Asistente de IA **local** para Windows: chat, imágenes, vídeo, voz y un agente
 - **Respuestas verificadas:** un verificador revisa las respuestas para que no inventen datos.
 - **Agente de código con frenos:** puntos de control para deshacer, revisión, reglas por proyecto y bloqueo de órdenes peligrosas.
 - **Gestión de la GPU:** carga y descarga modelos de texto, imagen y vídeo para que quepan en una sola tarjeta.
-- **Filtro de contenido** en el último paso antes del generador ([content_guard.py](orchestrator/media/content_guard.py)): no se generan desnudos ni contenido sexual, se pida como se pida.
+- **Filtro de contenido** en el último paso antes del generador: no se generan desnudos ni contenido sexual, se pida como se pida.
 
 Los modelos se configuran en `orchestrator/config.yaml`.
 
